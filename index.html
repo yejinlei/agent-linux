@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux 内核本体论 · agent-linux</title>
+    <script src="https://aisearch-task.bj.bcebos.com/static/tailwindcss-3.4.17.js"></script>
+    <script src="https://aisearch-task.bj.bcebos.com/static/echarts-5.6.0.min.js"></script>
+    <script src="https://aisearch-task.bj.bcebos.com/static/gsap-3.12.7.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #1a1a2e;
+            --ink-light: #4a4a6a;
+            --accent: #cc3333;
+            --accent-soft: rgba(204, 51, 51, 0.08);
+            --gold: #d4a853;
+            --paper: #f8f5f0;
+            --paper-dark: #ede6db;
+            --border: #d9d2c7;
+            --card-bg: rgba(255,255,255,0.85);
+        }
+        
+        * {
+            font-family: 'Inter', 'Noto Serif SC', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .serif {
+            font-family: 'Noto Serif SC', Georgia, serif;
+        }
+        
+        body {
+            background: var(--paper);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(204, 51, 51, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(212, 168, 83, 0.03) 0%, transparent 50%);
+            color: var(--ink);
+            scroll-behavior: smooth;
+        }
+        
+        section {
+            scroll-margin-top: 80px;
+        }
+        
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(26, 26, 46, 0.04);
+            transition: all 0.3s cubic-bezier(.2,.8,.2,1);
+            overflow: visible;
+            position: relative;
+        }
+        
+        .glass-card:hover {
+            box-shadow: 0 8px 30px rgba(26, 26, 46, 0.08);
+            transform: translateY(-2px);
+        }
+        
+        .nav-item {
+            position: relative;
+            padding: 0.5rem 1rem;
+            color: var(--ink-light);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            color: var(--accent);
+        }
+        
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 1rem;
+            height: 2px;
+            background: var(--accent);
+            border-radius: 1px;
+        }
+        
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--ink-light);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 60;
+        }
+        
+        .tab-btn { border-radius: 8px; }
+        
+        .tab-btn.active {
+            background: var(--ink);
+            color: white;
+            border-color: var(--ink);
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+            padding-bottom: 2rem;
+            border-left: 2px solid var(--border);
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+        
+        .axis-card {
+            border-left: 3px solid var(--accent);
+            padding-left: 1rem;
+            background: var(--accent-soft);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .ontology-node {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .ontology-node:hover {
+            filter: brightness(1.1);
+        }
+        
+        .search-box {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 0.75rem 1.5rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        
+        .module-card {
+            cursor: pointer;
+            overflow: hidden;
+        }
+        
+        .module-card .module-header {
+            background: linear-gradient(135deg, var(--ink) 0%, #2d2d4a 100%);
+            color: white;
+            padding: 1.5rem;
+        }
+        
+        .module-card .module-body {
+            padding: 1.5rem;
+        }
+        
+        .layer-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .layer-l0 { background: rgba(204, 51, 51, 0.1); color: var(--accent); }
+        .layer-l1 { background: rgba(212, 168, 83, 0.1); color: #92702d; }
+        .layer-l2 { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; }
+        .layer-l3 { background: rgba(16, 185, 129, 0.1); color: #047857; }
+        
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeup {
+            animation: fadeUp 0.6s cubic-bezier(.2,.8,.2,1) forwards;
+            opacity: 0;
+        }
+        
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
+        
+        .section-title {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 48px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="sticky top-0 z-[100] bg-[var(--paper)]/90 backdrop-blur-md border-b border-[var(--border)]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-[var(--accent)] flex items-center justify-center text-white font-bold serif text-lg">L</div>
+                    <span class="serif font-bold text-lg">🐧 linux-ontology</span>
+                </div>
+                <div class="hidden md:flex items-center gap-1">
+                    <div class="nav-item active" data-target="overview">总纲</div>
+                    <div class="nav-item" data-target="methodology">构建方法</div>
+                    <div class="nav-item" data-target="kernel-core">内核核心</div>
+                    <div class="nav-item" data-target="tcpip">TCP/IP 协议栈</div>
+                    <div class="nav-item" data-target="filesystem">文件系统</div>
+                    <div class="nav-item" data-target="virtualization">虚拟化与驱动</div>
+                    <div class="nav-item" data-target="graph">知识图谱</div>
+                    <div class="nav-item" data-target="syscall">系统调用</div>
+                    <div class="nav-item" data-target="timeline">发展时间轴</div>
+                    <div class="nav-item" data-target="glossary">术语表</div>
+                </div>
+                <button id="searchBtn" class="p-2 rounded-full hover:bg-[var(--paper-dark)] transition" aria-label="搜索本体概念">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 搜索面板 -->
+    <div id="searchPanel" class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="max-w-2xl mx-auto mt-20 p-4">
+            <div class="glass-card p-6">
+                <input type="text" id="searchInput" class="search-box text-lg" placeholder="搜索本体概念、数据结构、模块...">
+                <div id="searchResults" class="mt-4 max-h-[400px] overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero 区域 -->
+    <section class="py-16 md:py-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="animate-fadeup">
+                        <span class="layer-badge layer-l0">L0 · 元本体层</span>
+                        <h1 class="serif text-4xl md:text-6xl font-bold mt-4 leading-tight">
+                            Linux 内核<br/>
+                            <span class="text-[var(--accent)]">本体论</span>
+                        </h1>
+                        <p class="mt-2 text-sm text-[var(--ink-light)]/70 tracking-wide font-mono">
+                            agent-linux · Ontology of Linux Kernel & TCP/IP Stack
+                        </p>
+                        <p class="mt-6 text-lg text-[var(--ink-light)] leading-relaxed">
+                            以本体工程方法系统解构Linux内核架构：统一元模型为骨，各子模块差异化本体为肉，工程实践为魂，构建可推理、可关联、可演化的操作系统知识体系。
+                        </p>
+                        <div class="mt-8 flex flex-wrap gap-3">
+                            <div class="axis-card">
+                                <div class="text-sm font-semibold text-[var(--accent)]">元模型统一</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">实体·关系·公理三层一致</div>
+                            </div>
+                            <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                <div class="text-sm font-semibold" style="color: #92702d;">模块差异化</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">分类·过程·映射·匹配·边界五主轴</div>
+                            </div>
+                            <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                <div class="text-sm font-semibold" style="color: #047857;">三层递进</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">结构→行为→语义本体逐层抽象</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="animate-fadeup stagger-2">
+                    <div class="glass-card p-6">
+                        <h3 class="serif font-bold text-lg mb-4">本体层级体系</h3>
+                        <div id="hierarchyChart" style="height: 380px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 总纲 -->
+    <section id="overview" class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">总纲 · 内核即本体</h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-12">
+                <div class="glass-card p-6 animate-fadeup">
+                    <div class="w-12 h-12 rounded-lg bg-[var(--accent-soft)] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <h3 class="serif font-bold text-xl mb-2">一切皆抽象</h3>
+                    <p class="text-[var(--ink-light)] leading-relaxed">
+                        从VFS的四大对象到调度器类，从socket抽象到设备模型，Linux本体的核心是用统一抽象屏蔽异构实现。所有实体都通过函数指针表实现多态，与面向对象本体的继承多态本质同构。
+                    </p>
+                </div>
+                
+                <div class="glass-card p-6 animate-fadeup stagger-1">
+                    <div class="w-12 h-12 rounded-lg bg-[rgba(212,168,83,0.1)] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[var(--gold)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <h3 class="serif font-bold text-xl mb-2">机制策略分离</h3>
+                    <p class="text-[var(--ink-light)] leading-relaxed">
+                        机制定义本体的不变约束（如进程调度的实体是task_struct），策略定义可变的行为（如CFS/RT/DL的调度算法）。这是内核可演化性的本体论根基，也是所有子系统设计的第一原则。
+                    </p>
+                </div>
+                
+                <div class="glass-card p-6 animate-fadeup stagger-2">
+                    <div class="w-12 h-12 rounded-lg bg-[rgba(16,185,129,0.1)] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                    </div>
+                    <h3 class="serif font-bold text-xl mb-2">分层环绕闭合</h3>
+                    <p class="text-[var(--ink-light)] leading-relaxed">
+                        从硬件抽象层到系统调用接口，内核本体呈现清晰的分层结构，层与层之间通过严格定义的接口交互。同时所有路径最终闭合（如sk_buff从分配到释放，进程从fork到exit），无本体泄漏。
+                    </p>
+                </div>
+            </div>
+            
+            <div class="glass-card p-8 animate-fadeup stagger-3">
+                <h3 class="serif font-bold text-xl mb-6">内核三法印</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div>
+                        <div class="text-[var(--accent)] serif text-lg font-semibold mb-2">诸法无我 · 一切皆文件</div>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed">
+                            VFS以统一的file_operations接口假名安立一切资源，无论是块设备、管道、socket还是/proc下的内核对象，都被抽象为文件描述符。万法平等，无有高下，使用者无需感知底层差异。
+                        </p>
+                    </div>
+                    <div>
+                        <div class="text-[var(--gold)] serif text-lg font-semibold mb-2">一即一切 · 宏内核圆融</div>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed">
+                            单地址空间下所有子系统直接协作，函数调用零开销互摄互入。进程调度可以直接触发内存回收，网络收包可以直接唤醒等待进程，体用不二，没有微内核的IPC边界割裂。
+                        </p>
+                    </div>
+                    <div>
+                        <div class="text-[#10b981] serif text-lg font-semibold mb-2">缘起性空 · 引用计数</div>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed">
+                            kref引用计数是内核对象生命周期的本体法则：对象本无自性，因缘聚合（引用计数>0）则存在，因缘消散（引用计数=0）则销毁。没有永恒的对象，只有流转的引用。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 构建方法 -->
+    <section id="methodology" class="py-16 bg-[var(--paper-dark)]/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">本体构建方法论</h2>
+            
+            <div class="grid md:grid-cols-12 gap-8">
+                <div class="md:col-span-5">
+                    <div class="glass-card p-6 sticky top-24">
+                        <h3 class="serif font-bold text-lg mb-4">双轨治理体系</h3>
+                        <p class="text-[var(--ink-light)] leading-relaxed mb-6">
+                            拒绝"一刀切模板"和"各自为政"两个极端，采用统一元模型加每模块定制主轴的双轨方案，保证互操作性的同时尊重每个子系统的知识形态。
+                        </p>
+                        <div id="methodChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-7 space-y-6">
+                    <div class="glass-card p-6 animate-fadeup">
+                        <h4 class="font-bold flex items-center gap-2 mb-4">
+                            <span class="w-6 h-6 rounded-full bg-[var(--accent)] text-white flex items-center justify-center text-xs">1</span>
+                            五大本体主轴矩阵
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-[var(--border)]">
+                                        <th class="text-left py-2 pr-4 font-semibold">主轴类型</th>
+                                        <th class="text-left py-2 pr-4 font-semibold">本体发生点</th>
+                                        <th class="text-left py-2 font-semibold">适用模块</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-[var(--border)]">
+                                    <tr>
+                                        <td class="py-3 pr-4 font-medium">分类驱动</td>
+                                        <td class="py-3 pr-4 text-[var(--ink-light)]">继承派生关系、机制族</td>
+                                        <td class="py-3 text-[var(--ink-light)]">调度器族、内存分配器、文件系统</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 pr-4 font-medium">过程/状态驱动</td>
+                                        <td class="py-3 pr-4 text-[var(--ink-light)]">状态机、时序流转、生命周期</td>
+                                        <td class="py-3 text-[var(--ink-light)]">TCP/IP协议栈、中断处理、系统调用</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 pr-4 font-medium">映射驱动</td>
+                                        <td class="py-3 pr-4 text-[var(--ink-light)]">地址/命名空间转换</td>
+                                        <td class="py-3 text-[var(--ink-light)]">VFS挂载树、页表、fd映射</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 pr-4 font-medium">匹配驱动</td>
+                                        <td class="py-3 pr-4 text-[var(--ink-light)]">注册-匹配-回调模式</td>
+                                        <td class="py-3 text-[var(--ink-light)]">设备模型、Netfilter、通知链</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-3 pr-4 font-medium">边界驱动</td>
+                                        <td class="py-3 pr-4 text-[var(--ink-light)]">资源隔离与重映射</td>
+                                        <td class="py-3 text-[var(--ink-light)]">namespace、cgroup、KVM虚拟化</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 animate-fadeup stagger-1">
+                        <h4 class="font-bold flex items-center gap-2 mb-4">
+                            <span class="w-6 h-6 rounded-full bg-[var(--accent)] text-white flex items-center justify-center text-xs">2</span>
+                            三层递进提炼流程
+                        </h4>
+                        <div class="space-y-4">
+                            <div class="flex gap-4 items-start">
+                                <div class="w-12 h-12 rounded-lg bg-[var(--accent-soft)] flex items-center justify-center shrink-0 font-bold text-[var(--accent)] serif">L1</div>
+                                <div>
+                                    <div class="font-semibold">结构本体</div>
+                                    <div class="text-sm text-[var(--ink-light)] mt-1">识别实体、数据结构、类层次关系，从符号表和代码结构提取本体骨架，对应"是什么"</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-4 items-start">
+                                <div class="w-12 h-12 rounded-lg bg-[rgba(212,168,83,0.1)] flex items-center justify-center shrink-0 font-bold text-[var(--gold)] serif">L2</div>
+                                <div>
+                                    <div class="font-semibold">行为本体</div>
+                                    <div class="text-sm text-[var(--ink-light)] mt-1">提取状态机、生命周期、回调链和时序流转，描述实体如何交互，对应"怎么运行"</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-4 items-start">
+                                <div class="w-12 h-12 rounded-lg bg-[rgba(16,185,129,0.1)] flex items-center justify-center shrink-0 font-bold text-[#10b981] serif">L3</div>
+                                <div>
+                                    <div class="font-semibold">语义本体</div>
+                                    <div class="text-sm text-[var(--ink-light)] mt-1">提炼设计哲学、抽象意图和跨模块共通原则，对应"为什么这么设计"，这是本体论的灵魂</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 animate-fadeup stagger-2">
+                        <h4 class="font-bold flex items-center gap-2 mb-4">
+                            <span class="w-6 h-6 rounded-full bg-[var(--accent)] text-white flex items-center justify-center text-xs">3</span>
+                            模块主轴分配
+                        </h4>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] text-sm">进程管理：分类驱动 + 状态驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(212,168,83,0.1)] text-[var(--gold)] text-sm">内存管理：映射驱动 + 分类驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] text-sm">中断：过程驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(59,130,246,0.1)] text-[#1d4ed8] text-sm">TCP/IP：状态驱动 + 过程驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(139,92,246,0.1)] text-[#6d28d9] text-sm">文件系统：映射驱动 + 分类驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(236,72,153,0.1)] text-[#be185d] text-sm">设备驱动：匹配驱动</span>
+                            <span class="px-3 py-1 rounded-full bg-[rgba(245,158,11,0.1)] text-[#b45309] text-sm">虚拟化：边界驱动</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- 内核核心架构 -->
+    <section id="kernel-core" class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">内核核心本体</h2>
+            
+            <div class="flex gap-2 mb-8 flex-wrap relative z-[70] p-1">
+                <button class="tab-btn active" data-core-tab="process">进程管理</button>
+                <button class="tab-btn" data-core-tab="memory">内存管理</button>
+                <button class="tab-btn" data-core-tab="interrupt">中断机制</button>
+                <button class="tab-btn" data-core-tab="sync">同步原语</button>
+            </div>
+            
+            <!-- 进程管理 -->
+            <div class="core-tab-content" id="process-tab">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="glass-card p-6 mb-6">
+                            <h3 class="serif font-bold text-xl mb-4">主轴：分类驱动 + 状态驱动</h3>
+                            <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                                进程管理的本体骨架是<strong>调度器类的分类继承体系</strong>加<strong>进程生命周期状态机</strong>的双轴结构。task_struct作为核心实体，承载所有调度器类抽象接口，不同调度策略通过sched_class多态实现。
+                            </p>
+                            <div class="space-y-3">
+                                <div class="axis-card">
+                                    <div class="font-semibold text-sm">核心实体</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">task_struct · sched_class · sched_entity · rq · cfs_rq</div>
+                                </div>
+                                <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #92702d;">核心关系</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">继承：sched_class → stop/dl/rt/cfs/idle_sched_class；包含：rq包含cfs_rq/rt_rq</div>
+                                </div>
+                                <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #047857;">核心公理</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">vruntime单调递增 · 高优先级调度器类始终抢占低优先级类 · 时间片完重新入队</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card p-6">
+                            <h4 class="font-bold mb-4">CFS 完全公平调度器本体</h4>
+                            <p class="text-sm text-[var(--ink-light)] leading-relaxed mb-4">
+                                CFS的本体核心是vruntime虚拟运行时间，通过红黑树实现O(log n)选择最小vruntime进程。它不分配固定时间片，而是根据系统负载动态计算进程应该获得的CPU时间比例，实现"众生平等"的因果调度。
+                            </p>
+                            <ul class="text-sm space-y-2 text-[var(--ink-light)]">
+                                <li class="flex gap-2">
+                                    <span class="text-[var(--accent)]">•</span>
+                                    <span><strong>nice值</strong>对应进程权重，决定CPU时间分配比例，不是固定优先级</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="text-[var(--accent)]">•</span>
+                                    <span><strong>调度延迟</strong>target_latency是所有进程至少运行一次的周期，默认20ms</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="text-[var(--accent)]">•</span>
+                                    <span><strong>最小粒度</strong>min_granularity防止进程切换过频，默认1ms</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="text-[var(--accent)]">•</span>
+                                    <span><strong>组调度</strong>通过task_group实现层级CPU配额，对应cgroup本体</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="glass-card p-6 mb-6">
+                            <h4 class="font-bold mb-4">进程生命周期状态机</h4>
+                            <div id="processStateChart" style="height: 320px;"></div>
+                        </div>
+                        
+                        <div class="glass-card p-6">
+                            <h4 class="font-bold mb-4">调度器类优先级层级</h4>
+                            <div id="schedHierarchy" style="height: 240px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 内存管理 -->
+            <div class="core-tab-content hidden" id="memory-tab">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="glass-card p-6 mb-6">
+                            <h3 class="serif font-bold text-xl mb-4">主轴：映射驱动 + 分类驱动</h3>
+                            <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                                内存管理的本体核心是<strong>虚拟地址到物理地址的四级映射</strong>，叠加页分配器、slab分配器的分类分配体系。所有内存操作最终都通过页表完成转换，缺页异常是地址映射动态建立的触发机制。
+                            </p>
+                            <div class="space-y-3">
+                                <div class="axis-card">
+                                    <div class="font-semibold text-sm">核心实体</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">struct page · mm_struct · vm_area_struct · pgd/pud/pmd/pte</div>
+                                </div>
+                                <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #92702d;">核心映射</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">虚拟地址 → 页表 → 物理页 · 文件偏移 → 页缓存 → 用户地址空间</div>
+                                </div>
+                                <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #047857;">写时复制</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">fork时共享只读页，写入时触发缺页异常复制物理页，是缘起性空的极致体现</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card p-6">
+                            <h4 class="font-bold mb-4">三级内存分配器体系</h4>
+                            <div class="space-y-4">
+                                <div class="p-3 rounded border border-[var(--border)]">
+                                    <div class="font-semibold text-sm">页分配器（伙伴系统）</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">以2^n阶为单位分配连续物理页，解决外部碎片，核心是free_area数组</div>
+                                </div>
+                                <div class="p-3 rounded border border-[var(--border)]">
+                                    <div class="font-semibold text-sm">slab/slub分配器</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">对伙伴系统的页再切分，按对象大小建立专用缓存，解决内部碎片，用于内核小对象分配</div>
+                                </div>
+                                <div class="p-3 rounded border border-[var(--border)]">
+                                    <div class="font-semibold text-sm">vmalloc</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">分配虚拟地址连续但物理地址不连续的内存，用于大内存需求且不需要物理连续的场景</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="glass-card p-6 mb-6">
+                            <h4 class="font-bold mb-4">四级页表映射结构</h4>
+                            <div id="pageTableChart" style="height: 320px;"></div>
+                        </div>
+                        
+                        <div class="glass-card p-6">
+                            <h4 class="font-bold mb-4">内存回收与水位线</h4>
+                            <p class="text-sm text-[var(--ink-light)] leading-relaxed">
+                                每个内存节点有min/low/high三个水位线，页分配时低于low触发直接回收，低于min触发OOM杀死进程。LRU链表分为active/inactive匿名/文件四类，页面老化算法模拟时间流逝，不常用的页面被换出或丢弃。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 中断机制 -->
+            <div class="core-tab-content hidden" id="interrupt-tab">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="glass-card p-6 mb-6">
+                            <h3 class="serif font-bold text-xl mb-4">主轴：过程驱动</h3>
+                            <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                                中断是硬件事件到内核处理路径的触发机制，本体核心是<strong>中断上下文与进程上下文的严格边界</strong>，以及硬中断→软中断→线程中断的三级处理流水线，保证高优先级事件快速响应，低优先级处理延后执行。
+                            </p>
+                            <div class="space-y-3">
+                                <div class="axis-card">
+                                    <div class="font-semibold text-sm">三级中断处理</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">硬中断（不可抢占，临界区短）→ 软中断（可抢占，不可睡眠）→ 工作队列（进程上下文，可睡眠）</div>
+                                </div>
+                                <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #92702d;">NAPI机制</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">中断到轮询的自适应切换，高负载时关闭中断用轮询处理，避免中断风暴，是定慧等持的体现</div>
+                                </div>
+                                <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                    <div class="font-semibold text-sm" style="color: #047857;">中断亲和性</div>
+                                    <div class="text-xs text-[var(--ink-light)] mt-1">将中断绑定到指定CPU，结合SMP架构实现并行处理，提高缓存局部性</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="glass-card p-6">
+                            <h4 class="font-bold mb-4">中断处理流水线</h4>
+                            <div id="interruptFlowChart" style="height: 380px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 同步原语 -->
+            <div class="core-tab-content hidden" id="sync-tab">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="glass-card p-6">
+                        <h3 class="serif font-bold text-xl mb-4">同步原语本体层级</h3>
+                        <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                            内核同步原语形成一个清晰的能力层级，从轻量级到重量级按适用场景排列，核心原则是<strong>在满足并发安全的前提下用最轻的原语</strong>。
+                        </p>
+                        <div class="space-y-3">
+                            <div class="p-3 rounded border border-[var(--border)]">
+                                <div class="font-semibold text-sm">原子变量</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">单指令原子操作，无等待，用于计数器，最轻量级</div>
+                            </div>
+                            <div class="p-3 rounded border border-[var(--border)]">
+                                <div class="font-semibold text-sm">自旋锁 spinlock</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">忙等待，临界区短，不可睡眠，中断上下文可用</div>
+                            </div>
+                            <div class="p-3 rounded border border-[var(--border)]">
+                                <div class="font-semibold text-sm">信号量 semaphore</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">睡眠等待，临界区长，允许持有锁时睡眠</div>
+                            </div>
+                            <div class="p-3 rounded border border-[var(--border)]">
+                                <div class="font-semibold text-sm">互斥锁 mutex</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">比信号量轻量，只有持有者能解锁，优先于信号量使用</div>
+                            </div>
+                            <div class="p-3 rounded border border-[var(--border)]">
+                                <div class="font-semibold text-sm">RCU 读拷贝更新</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">读端完全无锁，写端拷贝更新后等待宽限期结束释放旧对象，读多写少场景性能最优</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">锁的适用场景决策树</h4>
+                        <div id="lockDecisionChart" style="height: 420px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TCP/IP 协议栈 -->
+    <section id="tcpip" class="py-16 bg-[var(--paper-dark)]/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">TCP/IP 协议栈本体</h2>
+            
+            <div class="glass-card p-8 mb-8">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="layer-badge layer-l2">重点示范子模块</span>
+                    <span class="text-sm text-[var(--ink-light)]">主轴：状态驱动 + 过程驱动</span>
+                </div>
+                <h3 class="serif font-bold text-xl mb-3">以 sk_buff 生命周期为本体主线</h3>
+                <p class="text-[var(--ink-light)] leading-relaxed">
+                    TCP/IP协议栈是所有子模块中本体最完整、自洽性最高的模块。整个协议栈围绕<strong>sk_buff网络报文结构体</strong>的生命周期展开：发送路径从上到下层层加封装，接收路径从下到上层层解封装，TCP状态机驱动连接生命周期，Netfilter钩子点实现流量干预，conntrack跟踪连接状态。
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-12 gap-8">
+                <div class="md:col-span-8">
+                    <div class="glass-card p-6 mb-6">
+                        <h4 class="font-bold mb-4">TCP 状态机与十二缘起</h4>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed mb-4">
+                            TCP连接从建立到关闭的完整状态流转与佛教十二因缘流转还灭完美对应：三次握手是三事和合入胎，数据传输是住胎受报，四次挥手是寿暖识尽舍报，TIME_WAIT是中阴身等待旧业消尽。
+                        </p>
+                        <div id="tcpStateChart" style="height: 480px;"></div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">数据收发四层流转</h4>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <div class="text-[var(--accent)] font-semibold mb-3">发送路径（顺缘起 · 层层封装）</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center text-sm font-bold">4</div>
+                                        <div class="text-sm"><strong>应用层</strong>：write/send系统调用，用户数据拷贝到内核</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center text-sm font-bold">3</div>
+                                        <div class="text-sm"><strong>传输层</strong>：TCP/UDP加端口头，分段/流量控制</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center text-sm font-bold">2</div>
+                                        <div class="text-sm"><strong>网络层</strong>：IP加IP头，路由选择，分片</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center text-sm font-bold">1</div>
+                                        <div class="text-sm"><strong>链路层</strong>：加MAC头，网卡驱动发送到物理介质</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-[#10b981] font-semibold mb-3">接收路径（逆缘起 · 层层解封装）</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] flex items-center justify-center text-sm font-bold">1</div>
+                                        <div class="text-sm"><strong>链路层</strong>：网卡中断收包，校验MAC头</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] flex items-center justify-center text-sm font-bold">2</div>
+                                        <div class="text-sm"><strong>网络层</strong>：校验IP头，路由转发/本地投递</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] flex items-center justify-center text-sm font-bold">3</div>
+                                        <div class="text-sm"><strong>传输层</strong>：校验端口头，匹配socket，TCP按序重组</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] flex items-center justify-center text-sm font-bold">4</div>
+                                        <div class="text-sm"><strong>应用层</strong>：数据放到接收队列，唤醒用户进程read</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-4 space-y-6">
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">TCP可靠传输因果律</h4>
+                        <div class="space-y-3">
+                            <div class="text-sm">
+                                <div class="font-semibold text-[var(--accent)]">序号与ACK：业种不失</div>
+                                <div class="text-[var(--ink-light)] text-xs mt-1">每个字节都有序号，ACK确认所有已收到字节，丢包必然重传，因果不爽</div>
+                            </div>
+                            <div class="text-sm">
+                                <div class="font-semibold text-[var(--gold)]">滑动窗口：观机逗教</div>
+                                <div class="text-[var(--ink-light)] text-xs mt-1">接收窗口根据消费能力动态调整，发送方按接收方能力发送，不溢不欠</div>
+                            </div>
+                            <div class="text-sm">
+                                <div class="font-semibold text-[#10b981]">拥塞控制：消旧业不造新殃</div>
+                                <div class="text-[var(--ink-light)] text-xs mt-1">慢启动探测带宽，拥塞避免线性增，丢包时乘性减，主动适应网络容量</div>
+                            </div>
+                            <div class="text-sm">
+                                <div class="font-semibold text-[#3b82f6]">三次握手：三事和合生</div>
+                                <div class="text-[var(--ink-light)] text-xs mt-1">SYN→SYN+ACK→ACK，客户端、服务端、网络三者和合，连接方才成立</div>
+                            </div>
+                            <div class="text-sm">
+                                <div class="font-semibold text-[#8b5cf6]">四次挥手：寿暖识尽</div>
+                                <div class="text-[var(--ink-light)] text-xs mt-1">FIN→ACK→FIN→ACK，双向分别关闭，确保所有数据传输完毕才销毁连接</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">Netfilter 五钩子因果关口</h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between items-center p-2 rounded bg-[rgba(204,51,51,0.05)]">
+                                <span>PREROUTING</span><span class="text-[var(--ink-light)]">路由前 · DNAT</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 rounded bg-[rgba(212,168,83,0.05)]">
+                                <span>LOCAL_IN</span><span class="text-[var(--ink-light)]">入站过滤 · 防火墙</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 rounded bg-[rgba(16,185,129,0.05)]">
+                                <span>FORWARD</span><span class="text-[var(--ink-light)]">转发过滤</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 rounded bg-[rgba(59,130,246,0.05)]">
+                                <span>LOCAL_OUT</span><span class="text-[var(--ink-light)]">出站过滤</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2 rounded bg-[rgba(139,92,246,0.05)]">
+                                <span>POSTROUTING</span><span class="text-[var(--ink-light)]">路由后 · SNAT</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">核心实体关系</h4>
+                        <div class="text-sm text-[var(--ink-light)] space-y-2">
+                            <div><code class="bg-[var(--paper-dark)] px-1 rounded">struct sock</code>：套接字核心本体，包含协议状态、收发队列</div>
+                            <div><code class="bg-[var(--paper-dark)] px-1 rounded">sk_buff</code>：网络报文，贯穿整个协议栈流转</div>
+                            <div><code class="bg-[var(--paper-dark)] px-1 rounded">net_device</code>：网络设备抽象，对应网卡驱动</div>
+                            <div><code class="bg-[var(--paper-dark)] px-1 rounded">rtable</code>：路由表项，决定报文转发路径</div>
+                            <div><code class="bg-[var(--paper-dark)] px-1 rounded">nf_conntrack</code>：连接跟踪，阿赖耶识含藏连接种子</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- 文件系统 -->
+    <section id="filesystem" class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">文件系统本体</h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <div class="glass-card p-6 mb-6">
+                        <h3 class="serif font-bold text-xl mb-4">主轴：映射驱动 + 分类驱动</h3>
+                        <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                            文件系统的本体核心是VFS虚拟文件系统层的<strong>四大对象抽象</strong>，为上百种不同文件系统提供统一接口。它定义了"一切皆文件"的本体契约，所有具体文件系统只要实现这套接口就能被内核无缝接入。
+                        </p>
+                        <div class="space-y-3">
+                            <div class="axis-card">
+                                <div class="font-semibold text-sm">VFS 四大核心对象</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">super_block（超级块，文件系统实例）· inode（索引节点，文件本体）· dentry（目录项，路径解析缓存）· file（打开的文件实例）</div>
+                            </div>
+                            <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                <div class="font-semibold text-sm" style="color: #92702d;">核心映射关系</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">文件路径 → dentry → inode → 页缓存 → 磁盘块；不同文件系统通过file_operations多态实现</div>
+                            </div>
+                            <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                <div class="font-semibold text-sm" style="color: #047857;">挂载机制</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">mount命名空间实现文件系统的组合叠加，根文件系统为本体根，其他文件系统挂载到目录树节点上</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">文件系统分类谱系</h4>
+                        <div id="fsHierarchy" style="height: 320px;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="glass-card p-6 mb-6">
+                        <h4 class="font-bold mb-4">页缓存与IO栈</h4>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed mb-4">
+                            页缓存是文件IO性能的核心，文件数据被访问时先缓存到内存，写操作默认先写缓存再异步回写（write-back），direct IO绕过缓存直接访问磁盘。IO调度器对请求进行排序合并，减少磁盘寻道时间。
+                        </p>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3 p-2 rounded border border-[var(--border)]">
+                                <div class="w-2 h-2 rounded-full bg-[var(--accent)]"></div>
+                                <div class="text-sm">noop：无调度，直接下发，适合SSD</div>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded border border-[var(--border)]">
+                                <div class="w-2 h-2 rounded-full bg-[var(--gold)]"></div>
+                                <div class="text-sm">deadline：读写请求设超时期限，防止饿死</div>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded border border-[var(--border)]">
+                                <div class="w-2 h-2 rounded-full bg-[#10b981]"></div>
+                                <div class="text-sm">cfq/bfq：按进程分配IO带宽，公平调度</div>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded border border-[var(--border)]">
+                                <div class="w-2 h-2 rounded-full bg-[#3b82f6]"></div>
+                                <div class="text-sm">mq-deadline：多队列版本，适配现代高速SSD</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">特殊文件系统本体</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="p-3 rounded bg-[var(--paper-dark)]/50">
+                                <div class="font-semibold">procfs</div>
+                                <div class="text-xs text-[var(--ink-light)]">内核状态暴露，进程信息、系统参数虚拟文件</div>
+                            </div>
+                            <div class="p-3 rounded bg-[var(--paper-dark)]/50">
+                                <div class="font-semibold">sysfs</div>
+                                <div class="text-xs text-[var(--ink-light)]">设备模型与驱动信息的层次化展示</div>
+                            </div>
+                            <div class="p-3 rounded bg-[var(--paper-dark)]/50">
+                                <div class="font-semibold">tmpfs</div>
+                                <div class="text-xs text-[var(--ink-light)]">内存文件系统，临时文件存储，速度快</div>
+                            </div>
+                            <div class="p-3 rounded bg-[var(--paper-dark)]/50">
+                                <div class="font-semibold">devtmpfs</div>
+                                <div class="text-xs text-[var(--ink-light)]">设备节点自动创建，/dev目录的自动管理</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 虚拟化与驱动 -->
+    <section id="virtualization" class="py-16 bg-[var(--paper-dark)]/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">驱动与虚拟化本体</h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <div class="glass-card p-6 mb-6">
+                        <h3 class="serif font-bold text-xl mb-4">设备模型：匹配驱动主轴</h3>
+                        <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                            设备模型的本体核心是bus-device-driver三元匹配结构：总线负责注册设备和驱动，当设备和驱动匹配成功时调用驱动的probe函数完成初始化。这套解耦设计让硬件热插拔、驱动独立开发成为可能。
+                        </p>
+                        <div id="deviceModelChart" style="height: 320px;"></div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">中断处理下半部机制</h4>
+                        <p class="text-sm text-[var(--ink-light)] leading-relaxed">
+                            硬中断只做最紧急的硬件操作（如读寄存器、ack中断），剩下的耗时处理延后到下半部执行：软中断是静态定义的可延迟执行上下文，tasklet基于软中断实现单CPU串行执行，工作队列把工作交给内核线程在进程上下文执行。
+                        </p>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="glass-card p-6 mb-6">
+                        <h3 class="serif font-bold text-xl mb-4">虚拟化：边界驱动主轴</h3>
+                        <p class="text-[var(--ink-light)] leading-relaxed mb-4">
+                            虚拟化的本体核心是资源边界的重映射与隔离：通过硬件辅助虚拟化（Intel VT-x/AMD-V）把物理CPU/内存/IO抽象成虚拟资源，每个虚拟机看到的是一套完整但虚拟的硬件。容器则更轻量，通过namespace隔离视图，cgroup限制资源用量。
+                        </p>
+                        <div class="space-y-3">
+                            <div class="axis-card">
+                                <div class="font-semibold text-sm">容器六大namespace</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">mnt（挂载点）· pid（进程树）· net（网络栈）· ipc（进程间通信）· uts（主机名）· user（用户ID）</div>
+                            </div>
+                            <div class="axis-card" style="border-color: var(--gold); background: rgba(212,168,83,0.08);">
+                                <div class="font-semibold text-sm" style="color: #92702d;">cgroup资源控制</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">cpu · memory · blkio · devices · cpuset 等子系统，实现资源的配额与优先级控制</div>
+                            </div>
+                            <div class="axis-card" style="border-color: #10b981; background: rgba(16,185,129,0.08);">
+                                <div class="font-semibold text-sm" style="color: #047857;">KVM本体</div>
+                                <div class="text-xs text-[var(--ink-light)] mt-1">内核模块把Linux变成hypervisor，/dev/kvm接口提供虚拟机创建能力，用户态QEMU模拟设备</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h4 class="font-bold mb-4">IO虚拟化路径</h4>
+                        <div id="ioVirtChart" style="height: 260px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 知识图谱 -->
+    <!-- ===== 系统调用速查 ===== -->
+    <section id="syscall" class="py-16 bg-[var(--paper-dark)]/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-4">系统调用速查：从 FD 到 Socket</h2>
+            <p class="text-[var(--ink-light)] mb-12 max-w-3xl leading-relaxed">
+                系统调用是用户态与内核对话的全部词汇，也是本体论 <strong>L3 协议接口层</strong> 的直接入口。按功能家族分类，每一族都对应内核中的一个子系统本体。
+            </p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">📁 文件 I/O</h4>
+      <table class="w-full"><tbody><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">open/openat</td><td class="py-1.5 text-xs text-[var(--ink-light)]">打开文件，返回 FD</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">read/write</td><td class="py-1.5 text-xs text-[var(--ink-light)]">按 FD 读写</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">pread/pwrite</td><td class="py-1.5 text-xs text-[var(--ink-light)]">带 offset 读写，不改文件指针</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">lseek</td><td class="py-1.5 text-xs text-[var(--ink-light)]">移动文件指针</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">fsync/fdatasync</td><td class="py-1.5 text-xs text-[var(--ink-light)]">刷盘（元数据+数据）</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:var(--accent)">io_uring_*</td><td class="py-1.5 text-xs text-[var(--ink-light)]">异步 I/O 环</td></tr></tbody></table>
+    </div><div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">⚙️ 进程 / 内存</h4>
+      <table class="w-full"><tbody><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">clone/fork/vfork</td><td class="py-1.5 text-xs text-[var(--ink-light)]">创建进程/线程（带 flags）</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">execve</td><td class="py-1.5 text-xs text-[var(--ink-light)]">替换进程映像</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">wait4/waitid</td><td class="py-1.5 text-xs text-[var(--ink-light)]">等待子进程，回收僵尸</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">exit_group</td><td class="py-1.5 text-xs text-[var(--ink-light)]">退出整个线程组</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">mmap/mprotect</td><td class="py-1.5 text-xs text-[var(--ink-light)]">虚拟内存映射/保护</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#1d4ed8">brk</td><td class="py-1.5 text-xs text-[var(--ink-light)]">调整堆顶</td></tr></tbody></table>
+    </div><div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">🌐 网络 Socket</h4>
+      <table class="w-full"><tbody><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">socket</td><td class="py-1.5 text-xs text-[var(--ink-light)]">创建套接字 (AF_INET/SOCK_STREAM…)</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">bind/listen/accept</td><td class="py-1.5 text-xs text-[var(--ink-light)]">服务器三步走</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">connect</td><td class="py-1.5 text-xs text-[var(--ink-light)]">客户端发起连接（三次握手）</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">send/recv/sendto</td><td class="py-1.5 text-xs text-[var(--ink-light)]">发送/接收（TCP/UDP）</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">epoll_create/ctl/wait</td><td class="py-1.5 text-xs text-[var(--ink-light)]">I/O 多路复用事件通知</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#047857">setsockopt</td><td class="py-1.5 text-xs text-[var(--ink-light)]">设置 socket 选项</td></tr></tbody></table>
+    </div><div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">🔔 IPC & 信号</h4>
+      <table class="w-full"><tbody><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">pipe/pipe2</td><td class="py-1.5 text-xs text-[var(--ink-light)]">匿名管道</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">mq_open/send</td><td class="py-1.5 text-xs text-[var(--ink-light)]">POSIX 消息队列</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">shmget/shmat</td><td class="py-1.5 text-xs text-[var(--ink-light)]">System V 共享内存</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">semop</td><td class="py-1.5 text-xs text-[var(--ink-light)]">信号量 P/V 操作</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">kill/rt_sigaction</td><td class="py-1.5 text-xs text-[var(--ink-light)]">发信号、注册处理器</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#7c3aed">eventfd/timerfd</td><td class="py-1.5 text-xs text-[var(--ink-light)]">事件/定时器 FD 化</td></tr></tbody></table>
+    </div><div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">📦 模块 & 系统</h4>
+      <table class="w-full"><tbody><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">finit_module</td><td class="py-1.5 text-xs text-[var(--ink-light)]">加载 .ko 内核模块</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">uname/sysinfo</td><td class="py-1.5 text-xs text-[var(--ink-light)]">内核版本/系统统计</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">sysctl</td><td class="py-1.5 text-xs text-[var(--ink-light)]">读/写内核参数</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">mount/umount2</td><td class="py-1.5 text-xs text-[var(--ink-light)]">挂载/卸载文件系统</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">ptrace</td><td class="py-1.5 text-xs text-[var(--ink-light)]">进程跟踪 (gdb/strace)</td></tr><tr class="border-b border-[var(--border)]/60"><td class="py-1.5 pr-3 font-mono text-xs whitespace-nowrap" style="color:#b91c1c">bpf</td><td class="py-1.5 text-xs text-[var(--ink-light)]">加载 eBPF 程序/map</td></tr></tbody></table>
+    </div><div class="glass-card p-5">
+      <h4 class="font-bold mb-3 text-sm">🧭 控制流对比</h4>
+      <div class="space-y-2 text-xs">
+        <div class="p-2 rounded bg-[var(--paper-dark)]/50"><strong>服务器模型演进</strong><br><span class="text-[var(--ink-light)]">fork-per-connection → thread-pool → epoll → io_uring</span></div>
+        <div class="p-2 rounded bg-[var(--paper-dark)]/50"><strong>读文件路径</strong><br><span class="text-[var(--ink-light)] font-mono">read → 缺页 → 页缓存命中 → 否则提交块 IO → 中断唤醒</span></div>
+        <div class="p-2 rounded bg-[var(--paper-dark)]/50"><strong>收网络包</strong><br><span class="text-[var(--ink-light)] font-mono">NIC IRQ → NAPI poll → GRO → ip_rcv → tcp_v4_rcv → epoll</span></div>
+      </div>
+    </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="graph" class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">跨模块知识图谱</h2>
+            
+            <div class="glass-card p-6 mb-6">
+                <div class="flex flex-wrap gap-2 mb-6 relative z-[70] p-2 bg-white rounded-lg">
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm bg-[var(--ink)] text-white relative" data-filter="all">全部</button>
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm border border-[var(--border)] relative" data-filter="process">进程</button>
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm border border-[var(--border)] relative" data-filter="memory">内存</button>
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm border border-[var(--border)] relative" data-filter="network">网络</button>
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm border border-[var(--border)] relative" data-filter="fs">文件系统</button>
+                    <button class="graph-filter-btn px-3 py-1 rounded-full text-sm border border-[var(--border)] relative" data-filter="driver">驱动</button>
+                </div>
+                <div id="ontologyGraph" style="height: 680px; position: relative; z-index: 1;"></div>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="glass-card p-5">
+                    <div class="text-sm font-semibold text-[var(--accent)] mb-2">跨模块关联1</div>
+                    <p class="text-xs text-[var(--ink-light)] leading-relaxed">
+                        <strong>sk_buff</strong> 分配使用 <strong>kmem_cache_alloc</strong>（slab分配器），发送完成后通过 <strong>kfree_skb</strong> 释放，关联到内存管理模块的对象分配本体。
+                    </p>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-sm font-semibold text-[var(--gold)] mb-2">跨模块关联2</div>
+                    <p class="text-xs text-[var(--ink-light)] leading-relaxed">
+                        网络收包时硬中断触发 <strong>NAPI</strong> 轮询，处理完成后通过 <strong>wake_up_process</strong> 唤醒等待数据的进程，关联中断处理和进程调度本体。
+                    </p>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-sm font-semibold text-[#10b981] mb-2">跨模块关联3</div>
+                    <p class="text-xs text-[var(--ink-light)] leading-relaxed">
+                        可执行文件通过 <strong>execve</strong> 加载时，文件系统读取ELF文件，内存管理建立进程地址空间映射，进程调度开始调度新进程运行，三大核心模块协同完成。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 发展时间轴 -->
+    <section id="timeline" class="py-16 bg-[var(--paper-dark)]/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-12">Linux 本体演化时间轴</h2>
+            
+            <div class="grid md:grid-cols-12 gap-8">
+                <div class="md:col-span-8">
+                    <div class="relative">
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">1991</div>
+                            <h4 class="serif font-bold text-lg mt-1">0.01 版本发布</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                Linus Torvalds发布第一个Linux版本，仅支持i386架构，有简单的进程调度和内存管理，没有网络栈，本体骨架初步形成。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">1994</div>
+                            <h4 class="serif font-bold text-lg mt-1">1.0 正式版</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                支持TCP/IP协议栈，VFS虚拟文件系统层成型，本体核心三大件（进程、内存、文件系统）基本稳定，开始支持多架构。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">1996</div>
+                            <h4 class="serif font-bold text-lg mt-1">2.0 版本</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                支持SMP多处理器，新增内核线程机制，网络栈支持Netfilter钩子框架，本体开始支持多核心并发扩展。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2003</div>
+                            <h4 class="serif font-bold text-lg mt-1">2.6 版本</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                CFS完全公平调度器前身引入，O(1)调度器成为默认，支持NUMA架构，新增sysfs/debugfs，驱动模型成熟，Linux开始进入企业级服务器市场。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2007</div>
+                            <h4 class="serif font-bold text-lg mt-1">CFS 调度器合入</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                2.6.23版本正式合入CFS调度器，取代O(1)调度器，vruntime虚拟运行时间机制成为进程调度本体的核心，真正实现完全公平。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2008</div>
+                            <h4 class="serif font-bold text-lg mt-1">cgroups 合入主线</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                控制组机制合入内核，为容器技术奠定资源控制本体基础，后续namespace逐步完善，最终催生Docker/Kubernetes云原生生态。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2011</div>
+                            <h4 class="serif font-bold text-lg mt-1">3.0 版本</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                KVM虚拟化成熟，支持透明巨页、Btrfs文件系统，多队列块层引入，IO栈本体开始适配高速SSD硬件。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2015</div>
+                            <h4 class="serif font-bold text-lg mt-1">4.0 版本</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                eBPF机制引入，允许用户态安全加载在内核中执行的字节码，开启内核可扩展编程新时代，TCP栈支持BBR拥塞控制。
+                            </p>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="text-sm text-[var(--accent)] font-semibold">2020</div>
+                            <h4 class="serif font-bold text-lg mt-1">5.0+ 版本</h4>
+                            <p class="text-sm text-[var(--ink-light)] mt-2 leading-relaxed">
+                                io_uring异步IO框架合入，大幅提升IO性能，支持Rust内核驱动开发，持续优化云原生场景性能，本体仍在持续演化中。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-4">
+                    <div class="glass-card p-6 sticky top-24">
+                        <h4 class="font-bold mb-4">本体演化规律</h4>
+                        <div class="space-y-4 text-sm">
+                            <div>
+                                <div class="font-semibold text-[var(--accent)]">核心本体不变性</div>
+                                <p class="text-[var(--ink-light)] text-xs mt-1 leading-relaxed">
+                                    进程/内存/文件系统三大核心本体从1.0到6.x保持架构稳定，核心抽象没有颠覆性变化，体现了本体设计的正确性。
+                                </p>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-[var(--gold)]">外延持续扩展</div>
+                                <p class="text-[var(--ink-light)] text-xs mt-1 leading-relaxed">
+                                    新机制都是在核心本体之上的增量扩展：cgroup基于进程调度、io_uring基于VFS、eBPF基于内核执行上下文，没有推翻核心。
+                                </p>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-[#10b981]">硬件适配驱动演化</div>
+                                <p class="text-[var(--ink-light)] text-xs mt-1 leading-relaxed">
+                                    从单CPU到多核心、从机械盘到SSD、从物理机到虚拟机/容器、从10M网卡到100G网卡，硬件变化驱动本体扩展但不改变核心原则。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    <!-- ===== 术语表 ===== -->
+    <section id="glossary" class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="serif text-3xl font-bold section-title mb-4">Linux / TCP 术语表</h2>
+            <p class="text-[var(--ink-light)] mb-8 max-w-3xl leading-relaxed">
+                输入关键字即时过滤。每一个术语都是跨模块知识图谱中的 <strong>本体节点</strong>。
+            </p>
+            <input type="text" class="search-box mb-8" id="glossarySearch" placeholder="🔍 搜索术语（如 CFS、sk_buff、BBR、TIME_WAIT、cgroup、page fault...）">
+            <div id="glossaryList"></div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="py-12 border-t border-[var(--border)]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="serif text-lg font-bold mb-2">Linux 内核本体论 · agent-linux</div>
+            <p class="text-sm text-[var(--ink-light)] mb-2">
+                工程为骨 · 本体为魂 · 诸法空相 · 用之不竭
+            </p>
+            <p class="text-xs text-[var(--ink-light)]/60">
+                <a href="https://yejinlei.github.io/Buddhist" class="hover:text-[var(--accent)]">佛学本体论</a> · 
+                <a href="https://yejinlei.github.io/agent-media" class="hover:text-[var(--accent)]">音视频本体论</a> · 
+                <a href="https://github.com/yejinlei/agent-linux" class="hover:text-[var(--accent)]">GitHub</a>
+            </p>
+        </div>
+    </footer>
+    <script>
+        // 导航切换
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                const target = document.getElementById(item.dataset.target);
+                if(target) target.scrollIntoView({behavior: 'smooth'});
+            });
+        });
+
+        // 滚动监听激活导航
+        window.addEventListener('scroll', () => {
+            const sections = ['overview', 'methodology', 'kernel-core', 'tcpip', 'filesystem', 'virtualization', 'syscall', 'graph', 'timeline', 'glossary'];
+            const scrollPos = window.scrollY + 100;
+            sections.forEach(id => {
+                const section = document.getElementById(id);
+                if(section && section.offsetTop <= scrollPos && section.offsetTop + section.offsetHeight > scrollPos) {
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    document.querySelector(`.nav-item[data-target="${id}"]`).classList.add('active');
+                }
+            });
+        });
+
+        // 内核核心Tab切换
+        document.querySelectorAll('.tab-btn[data-core-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn[data-core-tab]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.core-tab-content').forEach(c => c.classList.add('hidden'));
+                document.getElementById(`${btn.dataset.coreTab}-tab`).classList.remove('hidden');
+                // 触发图表resize
+                window.dispatchEvent(new Event('resize'));
+            });
+        });
+
+        // 搜索功能
+        const ontologyIndex = [
+            {name: 'task_struct', module: 'process', desc: '进程描述符，进程管理的核心实体'},
+            {name: 'sk_buff', module: 'network', desc: '网络报文缓冲区，贯穿TCP/IP协议栈'},
+            {name: 'struct page', module: 'memory', desc: '物理页描述符，内存管理的核心实体'},
+            {name: 'inode', module: 'fs', desc: 'VFS索引节点，代表文件本体'},
+            {name: 'CFS调度器', module: 'process', desc: '完全公平调度器，vruntime为核心'},
+            {name: 'TCP三次握手', module: 'network', desc: '连接建立机制，对应三事和合生'},
+            {name: '四级页表', module: 'memory', desc: '虚拟地址到物理地址的映射结构'},
+            {name: 'Netfilter', module: 'network', desc: '网络报文过滤框架，五钩子点'},
+            {name: 'VFS', module: 'fs', desc: '虚拟文件系统，一切皆文件的抽象层'},
+            {name: 'RCU', module: 'process', desc: '读拷贝更新同步原语，读端无锁'},
+            {name: '写时复制', module: 'memory', desc: 'fork时共享页，写入时复制'},
+            {name: 'NAPI', module: 'network', desc: '中断/轮询自适应收包机制'},
+            {name: 'cgroup', module: 'virtualization', desc: '控制组，资源限制机制'},
+            {name: 'namespace', module: 'virtualization', desc: '命名空间，资源隔离机制'},
+            {name: 'device model', module: 'driver', desc: '总线-设备-驱动三元匹配模型'},
+            {name: '伙伴系统', module: 'memory', desc: '物理页分配器，解决外部碎片'},
+            {name: 'slab分配器', module: 'memory', desc: '内核小对象分配器，解决内部碎片'},
+            {name: 'BBR拥塞控制', module: 'network', desc: '基于带宽和RTT的拥塞控制算法'},
+            {name: 'io_uring', module: 'fs', desc: '新型异步IO框架，高性能IO'},
+            {name: 'eBPF', module: 'core', desc: '扩展伯克利包过滤器，内核可编程机制'},
+        ];
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            document.getElementById('searchPanel').classList.remove('hidden');
+            document.getElementById('searchInput').focus();
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const results = ontologyIndex.filter(item => item.name.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query));
+            const resultsContainer = document.getElementById('searchResults');
+            if(query.length === 0) {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+            resultsContainer.innerHTML = results.map(item => `
+                <div class="p-3 hover:bg-[var(--accent-soft)] rounded-lg cursor-pointer transition" onclick="document.getElementById('searchPanel').classList.add('hidden')">
+                    <div class="font-semibold text-sm">${item.name}</div>
+                    <div class="text-xs text-[var(--ink-light)] mt-1">${item.desc}</div>
+                    <div class="text-xs text-[var(--accent)] mt-1">${item.module} 模块</div>
+                </div>
+            `).join('');
+        });
+
+        // 知识图谱筛选
+        document.querySelectorAll('.graph-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.graph-filter-btn').forEach(b => {
+                    b.classList.remove('bg-[var(--ink)]', 'text-white');
+                    b.classList.add('border', 'border-[var(--border)]');
+                });
+                btn.classList.add('bg-[var(--ink)]', 'text-white');
+                btn.classList.remove('border', 'border-[var(--border)]');
+                initOntologyGraph(btn.dataset.filter);
+            });
+        });
+
+        // 初始化层级图
+        function initHierarchyChart() {
+            const chart = echarts.init(document.getElementById('hierarchyChart'));
+            const option = {
+                tooltip: {trigger: 'item', triggerOn: 'mousemove'},
+                series: [{
+                    type: 'tree',
+                    data: [{
+                        name: 'Linux 本体',
+                        children: [
+                            {name: 'L0 元本体', children: [
+                                {name: '一切皆抽象'},
+                                {name: '机制策略分离'},
+                                {name: '引用计数'}
+                            ]},
+                            {name: 'L1 核心子系统', children: [
+                                {name: '进程管理'},
+                                {name: '内存管理'},
+                                {name: '文件系统'},
+                                {name: '网络栈'},
+                                {name: '设备驱动'}
+                            ]},
+                            {name: 'L2 机制层', children: [
+                                {name: '调度器'},
+                                {name: '中断处理'},
+                                {name: '同步原语'},
+                                {name: '系统调用'}
+                            ]},
+                            {name: 'L3 语义层', children: [
+                                {name: '一切皆文件'},
+                                {name: '宏内核圆融'},
+                                {name: '分层闭合'}
+                            ]}
+                        ]
+                    }],
+                    top: '5%', left: '15%', bottom: '5%', right: '10%',
+                    symbolSize: 8,
+                    orient: 'LR',
+                    label: {position: 'left', verticalAlign: 'middle', align: 'right', fontSize: 12},
+                    leaves: {label: {position: 'right', verticalAlign: 'middle', align: 'left'}},
+                    lineStyle: {color: '#cc3333', width: 1.5, curveness: 0.5},
+                    itemStyle: {color: '#cc3333'},
+                    emphasis: {focus: 'descendant'}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 方法论图表
+        function initMethodChart() {
+            const chart = echarts.init(document.getElementById('methodChart'));
+            const option = {
+                radar: {
+                    indicator: [
+                        {name: '实体层级', max: 100},
+                        {name: '状态流转', max: 100},
+                        {name: '映射关系', max: 100},
+                        {name: '匹配机制', max: 100},
+                        {name: '边界抽象', max: 100}
+                    ],
+                    radius: '70%',
+                    axisName: {color: '#4a4a6a', fontSize: 11},
+                    splitArea: {areaStyle: {color: ['rgba(204,51,51,0.02)', 'rgba(204,51,51,0.05)']}}
+                },
+                series: [{
+                    type: 'radar',
+                    data: [
+                        {value: [90, 70, 60, 40, 30], name: '进程管理', areaStyle: {color: 'rgba(204,51,51,0.2)'}, lineStyle: {color: '#cc3333'}},
+                        {value: [70, 50, 95, 50, 40], name: '内存管理', areaStyle: {color: 'rgba(212,168,83,0.2)'}, lineStyle: {color: '#d4a853'}},
+                        {value: [60, 90, 40, 50, 30], name: 'TCP/IP', areaStyle: {color: 'rgba(59,130,246,0.2)'}, lineStyle: {color: '#3b82f6'}},
+                    ]
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 进程状态机
+        function initProcessStateChart() {
+            const chart = echarts.init(document.getElementById('processStateChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    roam: true,
+                    label: {show: true, fontSize: 12},
+                    edgeSymbol: ['none', 'arrow'],
+                    edgeSymbolSize: 8,
+                    data: [
+                        {name: 'TASK_RUNNING', itemStyle: {color: '#10b981'}},
+                        {name: 'TASK_INTERRUPTIBLE', itemStyle: {color: '#3b82f6'}},
+                        {name: 'TASK_UNINTERRUPTIBLE', itemStyle: {color: '#f59e0b'}},
+                        {name: 'TASK_STOPPED', itemStyle: {color: '#8b5cf6'}},
+                        {name: 'TASK_ZOMBIE', itemStyle: {color: '#ef4444'}},
+                        {name: 'EXIT_DEAD', itemStyle: {color: '#6b7280'}},
+                    ],
+                    links: [
+                        {source: 'TASK_RUNNING', target: 'TASK_INTERRUPTIBLE', label: {show: true, formatter: '等待事件', fontSize: 10}},
+                        {source: 'TASK_INTERRUPTIBLE', target: 'TASK_RUNNING', label: {show: true, formatter: '事件到达', fontSize: 10}},
+                        {source: 'TASK_RUNNING', target: 'TASK_UNINTERRUPTIBLE', label: {show: true, formatter: 'IO等待', fontSize: 10}},
+                        {source: 'TASK_UNINTERRUPTIBLE', target: 'TASK_RUNNING', label: {show: true, formatter: 'IO完成', fontSize: 10}},
+                        {source: 'TASK_RUNNING', target: 'TASK_STOPPED', label: {show: true, formatter: 'SIGSTOP', fontSize: 10}},
+                        {source: 'TASK_STOPPED', target: 'TASK_RUNNING', label: {show: true, formatter: 'SIGCONT', fontSize: 10}},
+                        {source: 'TASK_RUNNING', target: 'TASK_ZOMBIE', label: {show: true, formatter: 'exit', fontSize: 10}},
+                        {source: 'TASK_ZOMBIE', target: 'EXIT_DEAD', label: {show: true, formatter: 'wait', fontSize: 10}},
+                    ],
+                    force: {repulsion: 300, edgeLength: 100},
+                    lineStyle: {color: '#999', width: 1.5, curveness: 0.2}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 调度器层级
+        function initSchedHierarchy() {
+            const chart = echarts.init(document.getElementById('schedHierarchy'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'funnel',
+                    left: '10%', right: '10%',
+                    data: [
+                        {value: 100, name: 'Stop 调度器（最高优先级）', itemStyle: {color: '#ef4444'}},
+                        {value: 80, name: 'Deadline 调度器', itemStyle: {color: '#f59e0b'}},
+                        {value: 60, name: 'RT 实时调度器', itemStyle: {color: '#8b5cf6'}},
+                        {value: 40, name: 'CFS 完全公平调度器', itemStyle: {color: '#10b981'}},
+                        {value: 20, name: 'Idle 空闲调度器', itemStyle: {color: '#9ca3af'}},
+                    ],
+                    label: {fontSize: 11},
+                    sort: 'descending',
+                    gap: 2,
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 页表结构
+        function initPageTableChart() {
+            const chart = echarts.init(document.getElementById('pageTableChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'sankey',
+                    data: [
+                        {name: '虚拟地址'},
+                        {name: 'PGD 页全局目录'},
+                        {name: 'PUD 页上级目录'},
+                        {name: 'PMD 页中间目录'},
+                        {name: 'PTE 页表项'},
+                        {name: '物理页'}
+                    ],
+                    links: [
+                        {source: '虚拟地址', target: 'PGD 页全局目录', value: 100},
+                        {source: 'PGD 页全局目录', target: 'PUD 页上级目录', value: 100},
+                        {source: 'PUD 页上级目录', target: 'PMD 页中间目录', value: 100},
+                        {source: 'PMD 页中间目录', target: 'PTE 页表项', value: 100},
+                        {source: 'PTE 页表项', target: '物理页', value: 100},
+                    ],
+                    lineStyle: {color: 'gradient', curveness: 0.5},
+                    label: {fontSize: 11}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 中断流水线
+        function initInterruptFlowChart() {
+            const chart = echarts.init(document.getElementById('interruptFlowChart'));
+            const option = {
+                tooltip: {trigger: 'item'},
+                series: [{
+                    type: 'sankey',
+                    data: [
+                        {name: '硬件中断信号'},
+                        {name: '保存上下文，关中断'},
+                        {name: '硬中断上半部'},
+                        {name: '开中断'},
+                        {name: '软中断/ tasklet'},
+                        {name: '工作队列'},
+                        {name: '中断返回，恢复上下文'},
+                    ],
+                    links: [
+                        {source: '硬件中断信号', target: '保存上下文，关中断', value: 100},
+                        {source: '保存上下文，关中断', target: '硬中断上半部', value: 100},
+                        {source: '硬中断上半部', target: '开中断', value: 100},
+                        {source: '开中断', target: '软中断/ tasklet', value: 70},
+                        {source: '开中断', target: '工作队列', value: 30},
+                        {source: '软中断/ tasklet', target: '中断返回，恢复上下文', value: 70},
+                        {source: '工作队列', target: '中断返回，恢复上下文', value: 30},
+                    ],
+                    lineStyle: {color: 'gradient', curveness: 0.5},
+                    label: {fontSize: 11}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // TCP状态机
+        function initTcpStateChart() {
+            const chart = echarts.init(document.getElementById('tcpStateChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'graph',
+                    layout: 'circular',
+                    roam: true,
+                    circular: {rotateLabel: true},
+                    label: {show: true, fontSize: 11},
+                    edgeSymbol: ['none', 'arrow'],
+                    edgeSymbolSize: 6,
+                    data: [
+                        {name: 'CLOSED', itemStyle: {color: '#6b7280'}},
+                        {name: 'LISTEN', itemStyle: {color: '#3b82f6'}},
+                        {name: 'SYN_SENT', itemStyle: {color: '#f59e0b'}},
+                        {name: 'SYN_RCVD', itemStyle: {color: '#8b5cf6'}},
+                        {name: 'ESTABLISHED', itemStyle: {color: '#10b981'}},
+                        {name: 'FIN_WAIT_1', itemStyle: {color: '#ec4899'}},
+                        {name: 'FIN_WAIT_2', itemStyle: {color: '#f97316'}},
+                        {name: 'TIME_WAIT', itemStyle: {color: '#ef4444'}},
+                        {name: 'CLOSING', itemStyle: {color: '#a855f7'}},
+                        {name: 'CLOSE_WAIT', itemStyle: {color: '#14b8a6'}},
+                        {name: 'LAST_ACK', itemStyle: {color: '#eab308'}},
+                    ],
+                    links: [
+                        {source: 'CLOSED', target: 'LISTEN', label: {show: true, formatter: 'passive open', fontSize: 9}},
+                        {source: 'CLOSED', target: 'SYN_SENT', label: {show: true, formatter: 'active open/SYN', fontSize: 9}},
+                        {source: 'LISTEN', target: 'SYN_RCVD', label: {show: true, formatter: 'SYN', fontSize: 9}},
+                        {source: 'SYN_SENT', target: 'SYN_RCVD', label: {show: true, formatter: 'SYN+ACK', fontSize: 9}},
+                        {source: 'SYN_SENT', target: 'ESTABLISHED', label: {show: true, formatter: 'SYN+ACK', fontSize: 9}},
+                        {source: 'SYN_RCVD', target: 'ESTABLISHED', label: {show: true, formatter: 'ACK', fontSize: 9}},
+                        {source: 'ESTABLISHED', target: 'FIN_WAIT_1', label: {show: true, formatter: '主动close/FIN', fontSize: 9}},
+                        {source: 'ESTABLISHED', target: 'CLOSE_WAIT', label: {show: true, formatter: '被动close/FIN', fontSize: 9}},
+                        {source: 'FIN_WAIT_1', target: 'FIN_WAIT_2', label: {show: true, formatter: 'ACK', fontSize: 9}},
+                        {source: 'FIN_WAIT_1', target: 'CLOSING', label: {show: true, formatter: 'FIN', fontSize: 9}},
+                        {source: 'FIN_WAIT_1', target: 'TIME_WAIT', label: {show: true, formatter: 'FIN+ACK', fontSize: 9}},
+                        {source: 'FIN_WAIT_2', target: 'TIME_WAIT', label: {show: true, formatter: 'FIN', fontSize: 9}},
+                        {source: 'CLOSING', target: 'TIME_WAIT', label: {show: true, formatter: 'ACK', fontSize: 9}},
+                        {source: 'CLOSE_WAIT', target: 'LAST_ACK', label: {show: true, formatter: 'close/FIN', fontSize: 9}},
+                        {source: 'LAST_ACK', target: 'CLOSED', label: {show: true, formatter: 'ACK', fontSize: 9}},
+                        {source: 'TIME_WAIT', target: 'CLOSED', label: {show: true, formatter: '2MSL超时', fontSize: 9}},
+                    ],
+                    lineStyle: {color: '#999', width: 1.2, curveness: 0.2}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 文件系统谱系
+        function initFsHierarchy() {
+            const chart = echarts.init(document.getElementById('fsHierarchy'));
+            const option = {
+                tooltip: {trigger: 'item', triggerOn: 'mousemove'},
+                series: [{
+                    type: 'tree',
+                    data: [{
+                        name: 'VFS 抽象层',
+                        children: [
+                            {name: '磁盘文件系统', children: [
+                                {name: 'ext4'},
+                                {name: 'xfs'},
+                                {name: 'btrfs'},
+                                {name: 'f2fs（闪存专用）'}
+                            ]},
+                            {name: '网络文件系统', children: [
+                                {name: 'NFS'},
+                                {name: 'CIFS/SMB'}
+                            ]},
+                            {name: '特殊文件系统', children: [
+                                {name: 'procfs'},
+                                {name: 'sysfs'},
+                                {name: 'tmpfs'},
+                                {name: 'devtmpfs'}
+                            ]},
+                            {name: '伪文件系统', children: [
+                                {name: 'pipefs'},
+                                {name: 'sockfs'},
+                                {name: 'ramfs'}
+                            ]}
+                        ]
+                    }],
+                    top: '5%', left: '15%', bottom: '5%', right: '10%',
+                    symbolSize: 8,
+                    orient: 'LR',
+                    label: {position: 'left', verticalAlign: 'middle', align: 'right', fontSize: 11},
+                    leaves: {label: {position: 'right', verticalAlign: 'middle', align: 'left'}},
+                    lineStyle: {color: '#d4a853', width: 1.5, curveness: 0.5},
+                    itemStyle: {color: '#d4a853'},
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 设备模型
+        function initDeviceModelChart() {
+            const chart = echarts.init(document.getElementById('deviceModelChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    roam: true,
+                    label: {show: true, fontSize: 12},
+                    data: [
+                        {name: 'Bus 总线', symbolSize: 60, itemStyle: {color: '#cc3333'}},
+                        {name: 'Device 设备', symbolSize: 50, itemStyle: {color: '#d4a853'}},
+                        {name: 'Driver 驱动', symbolSize: 50, itemStyle: {color: '#10b981'}},
+                        {name: 'probe() 初始化', symbolSize: 40, itemStyle: {color: '#3b82f6'}},
+                        {name: '设备树/ACPI', symbolSize: 40, itemStyle: {color: '#8b5cf6'}},
+                        {name: 'sysfs 导出', symbolSize: 40, itemStyle: {color: '#ec4899'}},
+                    ],
+                    links: [
+                        {source: 'Bus 总线', target: 'Device 设备', label: {show: true, formatter: '注册'}},
+                        {source: 'Bus 总线', target: 'Driver 驱动', label: {show: true, formatter: '注册'}},
+                        {source: '设备树/ACPI', target: 'Device 设备', label: {show: true, formatter: '描述'}},
+                        {source: 'Device 设备', target: 'Driver 驱动', label: {show: true, formatter: '匹配'}} ,
+                        {source: 'Driver 驱动', target: 'probe() 初始化', label: {show: true, formatter: '调用'}},
+                        {source: 'Device 设备', target: 'sysfs 导出', label: {show: true, formatter: '暴露'}},
+                    ],
+                    force: {repulsion: 400, edgeLength: 120},
+                    lineStyle: {color: '#999', width: 1.5, curveness: 0.2}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // IO虚拟化路径
+        function initIoVirtChart() {
+            const chart = echarts.init(document.getElementById('ioVirtChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'sankey',
+                    data: [
+                        {name: 'Guest OS'},
+                        {name: 'QEMU 设备模拟'},
+                        {name: 'virtio 前端驱动'},
+                        {name: 'vhost 后端'},
+                        {name: '宿主机内核'},
+                        {name: '物理硬件'}
+                    ],
+                    links: [
+                        {source: 'Guest OS', target: 'QEMU 设备模拟', value: 50},
+                        {source: 'Guest OS', target: 'virtio 前端驱动', value: 50},
+                        {source: 'QEMU 设备模拟', target: '宿主机内核', value: 50},
+                        {source: 'virtio 前端驱动', target: 'vhost 后端', value: 50},
+                        {source: 'vhost 后端', target: '宿主机内核', value: 50},
+                        {source: '宿主机内核', target: '物理硬件', value: 100},
+                    ],
+                    lineStyle: {color: 'gradient', curveness: 0.5},
+                    label: {fontSize: 11}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 知识图谱
+        function initOntologyGraph(filter = 'all') {
+            const chart = echarts.init(document.getElementById('ontologyGraph'));
+            const allNodes = [
+                {name: 'task_struct', category: 'process', symbolSize: 50},
+                {name: 'CFS', category: 'process', symbolSize: 40},
+                {name: 'sched_class', category: 'process', symbolSize: 35},
+                {name: 'struct page', category: 'memory', symbolSize: 50},
+                {name: '页表', category: 'memory', symbolSize: 45},
+                {name: '伙伴系统', category: 'memory', symbolSize: 35},
+                {name: 'slab', category: 'memory', symbolSize: 35},
+                {name: 'sk_buff', category: 'network', symbolSize: 50},
+                {name: 'TCP状态机', category: 'network', symbolSize: 45},
+                {name: 'Netfilter', category: 'network', symbolSize: 35},
+                {name: '路由表', category: 'network', symbolSize: 30},
+                {name: 'inode', category: 'fs', symbolSize: 45},
+                {name: 'VFS', category: 'fs', symbolSize: 50},
+                {name: '页缓存', category: 'fs', symbolSize: 35},
+                {name: 'device_driver', category: 'driver', symbolSize: 40},
+                {name: '中断处理', category: 'driver', symbolSize: 40},
+                {name: 'namespace', category: 'driver', symbolSize: 35},
+                {name: 'cgroup', category: 'driver', symbolSize: 35},
+            ];
+            const allLinks = [
+                {source: 'task_struct', target: 'CFS'},
+                {source: 'CFS', target: 'sched_class'},
+                {source: 'struct page', target: '页表'},
+                {source: 'struct page', target: '伙伴系统'},
+                {source: '伙伴系统', target: 'slab'},
+                {source: 'sk_buff', target: 'TCP状态机'},
+                {source: 'sk_buff', target: 'Netfilter'},
+                {source: 'sk_buff', target: '路由表'},
+                {source: 'inode', target: 'VFS'},
+                {source: 'VFS', target: '页缓存'},
+                {source: 'device_driver', target: '中断处理'},
+                {source: 'namespace', target: 'cgroup'},
+                {source: 'sk_buff', target: 'slab'}, // 跨模块
+                {source: '中断处理', target: 'task_struct'}, // 跨模块
+                {source: '页缓存', target: 'struct page'}, // 跨模块
+                {source: 'VFS', target: 'task_struct'}, // 跨模块
+            ];
+            
+            const categories = [
+                {name: 'process', itemStyle: {color: '#cc3333'}},
+                {name: 'memory', itemStyle: {color: '#d4a853'}},
+                {name: 'network', itemStyle: {color: '#3b82f6'}},
+                {name: 'fs', itemStyle: {color: '#10b981'}},
+                {name: 'driver', itemStyle: {color: '#8b5cf6'}},
+            ];
+            
+            let nodes = allNodes;
+            let links = allLinks;
+            if(filter !== 'all') {
+                nodes = allNodes.filter(n => n.category === filter || 
+                    allLinks.some(l => (l.source === n.name && allNodes.find(x=>x.name===l.target)?.category === filter) || 
+                                      (l.target === n.name && allNodes.find(x=>x.name===l.source)?.category === filter)));
+                const nodeNames = new Set(nodes.map(n=>n.name));
+                links = allLinks.filter(l => nodeNames.has(l.source) && nodeNames.has(l.target));
+            }
+
+            const option = {
+                tooltip: {},
+                legend: [{data: categories.map(c => c.name), top: 10}],
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    roam: true,
+                    draggable: true,
+                    categories: categories,
+                    label: {show: true, fontSize: 11},
+                    data: nodes,
+                    links: links,
+                    force: {repulsion: 300, edgeLength: 100},
+                    lineStyle: {color: '#999', width: 1, curveness: 0.2, opacity: 0.6},
+                    emphasis: {focus: 'adjacency', lineStyle: {width: 3}}
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 锁决策树
+        function initLockDecisionChart() {
+            const chart = echarts.init(document.getElementById('lockDecisionChart'));
+            const option = {
+                tooltip: {},
+                series: [{
+                    type: 'tree',
+                    data: [{
+                        name: '需要同步?',
+                        children: [
+                            {name: '中断上下文?', children: [
+                                {name: '单变量计数', children: [{name: '原子变量'}]},
+                                {name: '多变量临界区', children: [{name: '自旋锁'}]}
+                            ]},
+                            {name: '进程上下文', children: [
+                                {name: '临界区可睡眠?', children: [
+                                    {name: '否', children: [{name: '自旋锁'}]},
+                                    {name: '是', children: [
+                                        {name: '读多写少?', children: [
+                                            {name: '是', children: [{name: 'RCU'}]},
+                                            {name: '否', children: [{name: '互斥锁 mutex'}]}
+                                        ]}
+                                    ]}
+                                ]}
+                            ]}
+                        ]
+                    }],
+                    top: '5%', left: '15%', bottom: '5%', right: '15%',
+                    symbolSize: 8,
+                    orient: 'LR',
+                    label: {fontSize: 11},
+                    lineStyle: {color: '#10b981', width: 1.5, curveness: 0.5},
+                    itemStyle: {color: '#10b981'},
+                    initialTreeDepth: 4,
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 初始化所有图表
+        window.addEventListener('load', () => {
+            initHierarchyChart();
+            initMethodChart();
+            initProcessStateChart();
+            initSchedHierarchy();
+            initPageTableChart();
+            initInterruptFlowChart();
+            initTcpStateChart();
+            initFsHierarchy();
+            initDeviceModelChart();
+            initIoVirtChart();
+            initOntologyGraph();
+            initLockDecisionChart();
+        });
+
+        // 窗口resize
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('[id$="Chart"]').forEach(el => {
+                const chart = echarts.getInstanceByDom(el);
+                if(chart) chart.resize();
+            });
+        });
+    const glossary = [
+  {t:'task_struct',c:'进程描述符，Linux 用它描述进程/线程的全部状态。'},
+  {t:'CFS',c:'Completely Fair Scheduler，2.6.23 起默认，用红黑树按 vruntime 选进程。'},
+  {t:'EEVDF',c:'Earliest Eligible Virtual Deadline First，6.6 起取代 CFS，解决延迟不公平。'},
+  {t:'mm_struct',c:'进程内存描述符，管理进程虚拟地址空间、页表基址等。'},
+  {t:'伙伴系统 (Buddy)',c:'以页帧为单位、2^n 阶管理空闲块，解决外碎片。'},
+  {t:'Slab/Slub',c:'对象缓存分配器，加速小内核对象分配，默认 SLUB。'},
+  {t:'TLB',c:'Translation Lookaside Buffer，页表缓存加速虚拟-物理地址翻译。'},
+  {t:'缺页异常 (Page Fault)',c:'访问未映射 PTE 时触发内核处理——按需分配、COW、换入。'},
+  {t:'COW',c:'Copy-On-Write，fork 后父子共享页，一方写时才复制。'},
+  {t:'OOM Killer',c:'内存耗尽时按 badness 分数杀进程释放内存。'},
+  {t:'softirq',c:'最快的中断下半部，ksoftirqd 上下文，不可睡眠；NET_RX/TX/BLOCK/TIMER/RCU。'},
+  {t:'workqueue',c:'内核进程上下文的下半部，可以睡眠，处理延迟阻塞任务。'},
+  {t:'VFS',c:'Virtual File System，抽象层统一一切文件 I/O，屏蔽 ext4/NFS/proc 差异。'},
+  {t:'inode',c:'索引节点，文件实体元数据（大小/权限/块位置），不含名字。'},
+  {t:'dentry',c:'目录项，路径名分量到 inode 的联结，带 dcache。'},
+  {t:'super_block',c:'超级块，描述整个挂载文件系统的元信息。'},
+  {t:'file_operations',c:'VFS 面向文件对象的操作表 (.open/.read/.write/.mmap...)。'},
+  {t:'sk_buff',c:'Socket Buffer，内核网络包核心结构；以 head/data/tail/end 指针零拷贝移动。'},
+  {t:'NAPI',c:'New API，网卡收包「中断+轮询」混合机制，减轻中断风暴。'},
+  {t:'GRO/GSO',c:'Generic Receive/Segment Offload，收/发包时合并/拆 segmentation，提升吞吐。'},
+  {t:'Netfilter',c:'协议栈五钩子框架，iptables/nft/conntrack/NAT 的基础。'},
+  {t:'conntrack',c:'连接跟踪，记录 NAT/状态防火墙会话。'},
+  {t:'TCP',c:'传输控制协议，面向连接、可靠、有序、带流控与拥塞控制。'},
+  {t:'三次握手',c:'SYN → SYN+ACK → ACK，建连时双方同步初始序列号。'},
+  {t:'四次挥手',c:'FIN → ACK → FIN → ACK，因 TCP 半关闭需双方各发 FIN。'},
+  {t:'TIME_WAIT',c:'主动关闭方最终状态，等待 2MSL，防止老复用连接受延迟包干扰。'},
+  {t:'CLOSE_WAIT',c:'被动方已收到 FIN 但未 close()，常因应用泄漏导致 FD 耗尽。'},
+  {t:'SYN Flood',c:'攻击：发大量 SYN 不回 ACK，占满半连接队列；用 syncookies 缓解。'},
+  {t:'cwnd',c:'Congestion Window，拥塞窗口，决定发送方能在途数据量。'},
+  {t:'BDP',c:'Bandwidth-Delay Product，带宽×RTT，理想在途数据量，BBR 核心概念。'},
+  {t:'CUBIC',c:'Linux 默认拥塞控制算法，三次函数增窗，对 RTT 公平。'},
+  {t:'BBR',c:'Bottleneck Bandwidth and RTT，Google 提出，基于模型而非丢包判断拥塞。'},
+  {t:'epoll',c:'Linux 高效 I/O 多路复用，事件驱动，适合海量并发连接。'},
+  {t:'io_uring',c:'5.1 引入的异步 I/O 环，共享 SQ/CQ 环，零系统调用提交，性能革命性提升。'},
+  {t:'syscall',c:'系统调用，用户态通过 syscall 指令陷入内核请求服务。'},
+  {t:'KVM',c:'Kernel-based Virtual Machine，让 Linux 成为 Type-1 Hypervisor。'},
+  {t:'virtio',c:'半虚拟化 I/O 标准，guest 与 host 共享 virtqueue，高性能。'},
+  {t:'Namespace',c:'内核隔离机制，6 类 namespace 构成容器的「视图隔离」。'},
+  {t:'cgroup',c:'control groups，限制/统计一组进程的 CPU/内存/IO/PS。'},
+  {t:'OverlayFS',c:'联合文件系统，容器镜像层+可写层的实现基础。'},
+  {t:'eBPF',c:'extended BPF，内核安全虚拟机，可编程观测/网络/安全。'},
+  {t:'kobject',c:'设备模型基类，提供引用计数、sysfs 目录和层级关系。'},
+  {t:'sysfs',c:'/sys 下的设备模型文件系统，暴露内核对象与属性。'},
+  {t:'ioctl',c:'设备/套接字的控制接口，非通用读写的杂项操作入口。'},
+  {t:'container_of',c:'C 宏，通过成员指针反求结构体地址，Linux 面向对象 C 的基石。'},
+];
+
+        // 术语表渲染
+        function renderGlossary(kw) {
+            const k = (kw || '').trim().toLowerCase();
+            const list = document.getElementById('glossaryList');
+            const filtered = !k ? glossary : glossary.filter(g => g.t.toLowerCase().includes(k) || g.c.toLowerCase().includes(k));
+            if (filtered.length === 0) { list.innerHTML = '<p class="text-sm text-[var(--ink-light)] p-3">未找到相关术语</p>'; return; }
+            list.innerHTML = '<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">' + filtered.map(g =>
+                '<div class="glass-card p-4"><div class="font-mono font-bold text-sm" style="color:var(--accent)">' + g.t + '</div><div class="text-xs text-[var(--ink-light)] mt-1 leading-relaxed">' + g.c + '</div></div>'
+            ).join('') + '</div>';
+        }
+        renderGlossary();
+        var _gs = document.getElementById('glossarySearch');
+        if (_gs) _gs.addEventListener('input', e => renderGlossary(e.target.value));
+
+    </script>
+</body>
+</html>
