@@ -3,1138 +3,1502 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Linux 内核本体论 · 源码深度版</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+<title>Linux 内核本体论 · 原理与代码一一对应</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
 <style>
-:root {
-  --paper: #f8f5f0;
-  --ink: #1a1a1a;
-  --vermillion: #c53d43;
-  --gold: #b8860b;
-  --indigo: #2c3e50;
-  --jade: #2e8b57;
-  --border: #d4c5b0;
-}
-body {
-  font-family: 'Noto Serif SC', serif;
-  background: var(--paper);
-  color: var(--ink);
-  line-height: 1.8;
-}
-code, pre {
-  font-family: 'JetBrains Mono', monospace;
-}
-.nav-item.active {
-  color: var(--vermillion);
-  border-bottom: 2px solid var(--vermillion);
-}
-.section {
-  scroll-margin-top: 80px;
-}
-.card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2rem;
-  margin: 1.5rem 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.code-block {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 1.2rem;
-  border-radius: 6px;
-  overflow-x: auto;
-  font-size: 0.85rem;
-  line-height: 1.6;
-  margin: 1rem 0;
-}
-.code-keyword { color: #569cd6; }
-.code-type { color: #4ec9b0; }
-.code-comment { color: #6a9955; }
-.code-string { color: #ce9178; }
-.code-field { color: #9cdcfe; }
-.tab-btn.active {
-  background: var(--vermillion);
-  color: white;
-}
-.chart-container {
-  width: 100%;
-  height: 450px;
-  margin: 1rem 0;
-}
-.ontology-node {
-  fill: white;
-  stroke: var(--indigo);
-  stroke-width: 2px;
-  rx: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.ontology-node:hover {
-  fill: #f0f7ff;
-  stroke: var(--vermillion);
-  stroke-width: 3px;
-}
-.flow-line {
-  stroke: var(--gold);
-  stroke-width: 2px;
-  fill: none;
-  stroke-dasharray: 5,5;
-  animation: flow 1.5s linear infinite;
-}
-@keyframes flow {
-  to { stroke-dashoffset: -10; }
-}
-.packet {
-  fill: var(--vermillion);
-  rx: 4px;
-  animation: packetMove 4s ease-in-out infinite;
-}
-@keyframes packetMove {
-  0% { transform: translateX(0); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateX(800px); opacity: 0; }
-}
-.annotation {
-  font-size: 0.8rem;
-  fill: #666;
-}
-.animate-on-scroll {
-  opacity: 0;
-  transform: translateY(20px);
-}
+:root{--bg:#FAF6EE;--ink:#1A1310;--vermilion:#C23A2B;--gold:#C5922A;--jade:#2B5F4C;--paper:#F3ECDC;--code-bg:#1E1916;--code-fg:#EDE4D3;}
+body{background:var(--bg);color:var(--ink);font-family:'Noto Serif SC',serif;margin:0;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.code-block{background:var(--code-bg);color:var(--code-fg);border-radius:8px;padding:1rem;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;overflow-x:auto;white-space:pre;}
+.code-keyword{color:#D88268;}.code-type{color:#6BB8A0;}.code-comment{color:#8A7C6A;font-style:italic;}.code-func{color:#E8B860;}.code-string{color:#9CC46F;}.code-num{color:#C5922A;}
+.principle-box{background:linear-gradient(135deg,#FFF9EC,#F8EFD6);border-left:4px solid var(--vermilion);border-radius:0 8px 8px 0;padding:1rem 1.25rem;}
+.code-box{background:var(--code-bg);border-radius:8px;padding:1rem;}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;}
+.pair-title{font-weight:700;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.p-dot{background:var(--vermilion);}.c-dot{background:var(--jade);}
+.node{cursor:pointer;transition:all .25s;}
+.node:hover{stroke-width:3;}
+.flow-pill{display:inline-block;padding:.25rem .6rem;border-radius:6px;font-size:12px;font-weight:600;margin:0 .2rem;}
+.pill-principle{background:#FCE7E4;color:#C23A2B;}
+.pill-code{background:#DCEEE6;color:#2B5F4C;}
+.pill-call{background:#FBEDD6;color:#C5922A;}
+.accordion-h{cursor:pointer;user-select:none;}
+.accordion-c{overflow:hidden;max-height:0;transition:max-height .4s ease;}
+.accordion-c.open{max-height:10000px;}
+.arrow{transition:transform .3s;display:inline-block;}
+.arrow.rot{transform:rotate(90deg);}
+nav#toc{position:fixed;top:0;left:0;width:220px;height:100vh;background:#F3ECDC;padding:1.25rem .9rem;overflow-y:auto;border-right:1px solid #E2D7BE;font-size:13.5px;z-index:50;}
+nav#toc a{display:block;padding:.35rem .6rem;color:#6B5B43;text-decoration:none;border-radius:5px;}
+nav#toc a:hover,nav#toc a.active{background:#EAE0C5;color:var(--vermilion);font-weight:600;}
+main{margin-left:220px;padding:2rem 3rem;max-width:1200px;}
+section{margin-bottom:3.5rem;padding-top:1rem;}
+h2{font-size:1.85rem;font-weight:900;border-bottom:2px solid var(--ink);padding-bottom:.5rem;margin-top:0;}
+h3{font-size:1.3rem;font-weight:700;color:var(--vermilion);margin-top:2rem;}
+h4{font-size:1.08rem;font-weight:600;color:var(--jade);margin-top:1.3rem;}
+.pair-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}
+.pair-h .badge{font-size:11px;padding:.15rem .55rem;border-radius:4px;font-family:'JetBrains Mono',monospace;}
+.badge-path{background:#E8D9B5;color:#8A6A22;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:.8rem 0;}
+th{background:var(--ink);color:#FFF9EC;padding:.5rem .7rem;text-align:left;}
+td{border-bottom:1px solid #E2D7BE;padding:.45rem .7rem;}
+tr:hover td{background:#F8EFD6;}
+.svg-wrap{background:#FFF;border:1px solid #E2D7BE;border-radius:8px;padding:1rem;}
+.step-card{background:#FFF;border:1px solid #E2D7BE;border-radius:8px;padding:1rem;margin-bottom:.75rem;position:relative;}
+.step-num{position:absolute;top:-10px;left:15px;background:var(--vermilion);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+.step-coderef{background:var(--jade);}
+@keyframes flow{0%{stroke-dashoffset:20;}100%{stroke-dashoffset:0;}}
+.flow-line{stroke-dasharray:5 3;animation:flow 1s linear infinite;}
+.play-btn{background:var(--vermilion);color:#fff;border:none;padding:.4rem 1rem;border-radius:5px;cursor:pointer;font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;}
 </style>
 </head>
-<body class="antialiased">
-<!-- 导航栏 -->
-<nav class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-[var(--border)]">
-  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <span class="text-2xl">🐧</span>
-      <h1 class="text-xl font-bold">Linux 内核本体论 · 源码深度版</h1>
-    </div>
-    <div class="flex gap-6 text-sm overflow-x-auto pb-1">
-      <a href="#overview" class="nav-item active py-1 whitespace-nowrap">总纲</a>
-      <a href="#methodology" class="nav-item py-1 whitespace-nowrap">构建方法</a>
-      <a href="#process" class="nav-item py-1 whitespace-nowrap">进程调度</a>
-      <a href="#memory" class="nav-item py-1 whitespace-nowrap">内存管理</a>
-      <a href="#irq" class="nav-item py-1 whitespace-nowrap">中断机制</a>
-      <a href="#tcpip" class="nav-item py-1 whitespace-nowrap">TCP/IP协议栈</a>
-      <a href="#vfs" class="nav-item py-1 whitespace-nowrap">文件系统</a>
-      <a href="#driver" class="nav-item py-1 whitespace-nowrap">驱动虚拟化</a>
-      <a href="#syscall" class="nav-item py-1 whitespace-nowrap">系统调用</a>
-      <a href="#graph" class="nav-item py-1 whitespace-nowrap">知识图谱</a>
-    </div>
-  </div>
+<body>
+<nav id="toc">
+<div style="font-weight:900;font-size:15px;margin-bottom:1rem;color:var(--ink);border-bottom:2px solid var(--vermilion);padding-bottom:.5rem;">📑 目录索引</div>
+<a href="#s0">总览：原理-代码映射论</a>
+<a href="#s1">第一章：进程管理</a>
+<a href="#s1-1">1.1 task_struct 本体</a>
+<a href="#s1-2">1.2 进程创建 fork</a>
+<a href="#s1-3">1.3 调度：CFS 红黑树</a>
+<a href="#s1-4">1.4 进程状态切换</a>
+<a href="#s2">第二章：内存管理</a>
+<a href="#s2-1">2.1 进程地址空间</a>
+<a href="#s2-2">2.2 缺页异常</a>
+<a href="#s2-3">2.3 四级页表遍历</a>
+<a href="#s3">第三章：中断与异常</a>
+<a href="#s3-1">3.1 中断描述符 IDT</a>
+<a href="#s3-2">3.2 上半部/下半部</a>
+<a href="#s4">第四章：同步机制</a>
+<a href="#s5">第五章：文件系统</a>
+<a href="#s5-1">5.1 VFS 四大对象</a>
+<a href="#s5-2">5.2 open() 系统调用链路</a>
+<a href="#s6">第六章：网络协议栈</a>
+<a href="#s6-1">6.1 sk_buff 结构</a>
+<a href="#s6-2">6.2 数据包收发流程</a>
+<a href="#s6-3">6.3 TCP 三次握手</a>
+<a href="#s7">第七章：驱动模型</a>
+<a href="#s8">第八章：系统调用</a>
+<a href="#s9">对照总表</a>
 </nav>
+<main>
+<header style="text-align:center;padding:3rem 0 2rem;border-bottom:2px solid var(--ink);margin-bottom:2rem;">
+<div style="font-size:3rem;font-weight:900;color:var(--ink);letter-spacing:2px;">Linux 内核本体论</div>
+<div style="font-size:1.2rem;color:var(--vermilion);margin-top:.5rem;font-weight:600;">原理 × 代码 一一对应</div>
+<div style="font-size:.95rem;color:#6B5B43;margin-top:1rem;">每一条原理 → 对应的结构体定义 → 关键函数 → 源码路径</div>
+<div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;">
+<span class="flow-pill pill-principle">原理</span>
+<span class="flow-pill pill-code">结构体</span>
+<span class="flow-pill pill-call">函数</span>
+</div>
+</header>
 
-<main class="max-w-7xl mx-auto px-6 py-10">
-<!-- 总纲 -->
-<section id="overview" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">一、总纲：内核即本体 · 万法皆结构</h2>
-    <p class="text-lg mb-4">Linux内核本体论不是抽象的哲学比喻，而是以源码为本体、以数据结构为骨架、以函数指针表为多态、以调用链为因果的精确工程映射。</p>
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-      <div class="p-6 bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-100">
-        <h3 class="text-xl font-bold mb-3 text-[var(--vermillion)]">诸法无我 → 一切皆文件</h3>
-        <p class="text-sm">VFS用<code class="bg-gray-100 px-1 rounded">file_operations</code>函数指针表统一普通文件、socket、设备、管道的接口。没有哪个对象是"特殊"的，一切皆通过vnode假名安立，read/write是通用法。</p>
-        <div class="mt-3 text-xs text-gray-600">源码路径：include/linux/fs.h</div>
-      </div>
-      <div class="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-        <h3 class="text-xl font-bold mb-3 text-[var(--indigo)]">一即一切 → 宏内核单地址空间</h3>
-        <p class="text-sm">所有子系统共享同一内核地址空间，没有微内核的IPC开销。通过<code class="bg-gray-100 px-1 rounded">struct</code>内嵌和<code class="bg-gray-100 px-1 rounded">container_of</code>宏实现面向对象继承，互摄互入、零拷贝交互。</p>
-        <div class="mt-3 text-xs text-gray-600">设计哲学：Linus Torvalds, 1991</div>
-      </div>
-      <div class="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-100">
-        <h3 class="text-xl font-bold mb-3 text-[var(--jade)]">缘起性空 → 引用计数RCU</h3>
-        <p class="text-sm">所有内核对象都通过kref/refcount管理生命周期，缘起则聚（kobject_get）、缘尽则散（kobject_put→release）。RCU读复制更新实现无锁并发，性空而妙用无穷。</p>
-        <div class="mt-3 text-xs text-gray-600">源码路径：include/linux/kref.h, include/linux/rcupdate.h</div>
-      </div>
-    </div>
-  </div>
-</section>
+<section id="s0">
+<h2>总览：原理-代码映射论</h2>
+<div class="principle-box" style="margin-bottom:1.5rem;">
+<strong>核心信念：</strong>内核的每一条设计原理，都能在代码中找到精确的物化载体。不存在"无法落地的原理"，也不存在"没有原理的代码"。每一个指针、每一个链表、每一个回调函数，都是本体论原理的实体化。
+</div>
 
-<!-- 本体构建方法论 -->
-<section id="methodology" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-6 text-[var(--vermillion)]">二、本体构建方法论：三层递进 · 五大主轴</h2>
-    
-    <h3 class="text-xl font-bold mt-6 mb-4">🔹 三层提炼法（所有模块统一）</h3>
-    <div class="space-y-4">
-      <div class="flex gap-4 items-start p-4 bg-gray-50 rounded-lg">
-        <div class="w-16 h-16 flex items-center justify-center bg-[var(--indigo)] text-white rounded-lg font-bold text-xl shrink-0">L1</div>
-        <div>
-          <h4 class="font-bold text-lg">结构本体（是什么）</h4>
-          <p>提取核心struct定义、字段含义、组织方式（链表/红黑树/哈希表），建立实体-关系模型。对应内核头文件。</p>
-        </div>
-      </div>
-      <div class="flex gap-4 items-start p-4 bg-gray-50 rounded-lg">
-        <div class="w-16 h-16 flex items-center justify-center bg-[var(--gold)] text-white rounded-lg font-bold text-xl shrink-0">L2</div>
-        <div>
-          <h4 class="font-bold text-lg">行为本体（怎么运行）</h4>
-          <p>提取状态机、调用链、生命周期、回调时机。对应核心.c文件的执行路径。</p>
-        </div>
-      </div>
-      <div class="flex gap-4 items-start p-4 bg-gray-50 rounded-lg">
-        <div class="w-16 h-16 flex items-center justify-center bg-[var(--vermillion)] text-white rounded-lg font-bold text-xl shrink-0">L3</div>
-        <div>
-          <h4 class="font-bold text-lg">语义本体（为什么这么设计）</h4>
-          <p>提炼设计哲学、权衡取舍、演进脉络。对应内核Documentation文档与邮件列表讨论。</p>
-        </div>
-      </div>
-    </div>
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P0：内核用 C 语言实现了面向对象</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">C 语言本身没有类、继承、虚函数。但 Linux 通过「结构体嵌套 + 函数指针表」实现了多态：<br>
+• 抽象基类 = 含函数指针表的结构体<br>
+• 子类继承 = 嵌入基类结构体作为第一个成员<br>
+• 虚函数调用 = 通过函数指针间接调用<br>
+• RTTI = 通过 container_of 反解出子类</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C0：以 file_operations 为例 <span class="badge badge-path">include/linux/fs.h:2092</span></div>
+<pre class="code-block"><span class="code-comment">// 抽象"文件操作"基类——多态的函数指针表</span>
+<span class="code-keyword">struct</span> <span class="code-type">file_operations</span> {
+    <span class="code-type">loff_t</span> (*<span class="code-func">llseek</span>) (<span class="code-keyword">struct</span> <span class="code-type">file</span> *, <span class="code-type">loff_t</span>, <span class="code-type">int</span>);
+    <span class="code-type">ssize_t</span> (*<span class="code-func">read</span>) (<span class="code-keyword">struct</span> <span class="code-type">file</span> *, <span class="code-type">char</span> __user *, <span class="code-type">size_t</span>, <span class="code-type">loff_t</span> *);
+    <span class="code-type">ssize_t</span> (*<span class="code-func">write</span>) (<span class="code-keyword">struct</span> <span class="code-type">file</span> *, <span class="code-keyword">const</span> <span class="code-type">char</span> __user *, <span class="code-type">size_t</span>, <span class="code-type">loff_t</span> *);
+    <span class="code-type">int</span> (*<span class="code-func">open</span>) (<span class="code-keyword">struct</span> <span class="code-type">inode</span> *, <span class="code-keyword">struct</span> <span class="code-type">file</span> *);
+    <span class="code-type">int</span> (*<span class="code-func">mmap</span>) (<span class="code-keyword">struct</span> <span class="code-type">file</span> *, <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *);
+    <span class="code-comment">// … ext4/ext2/proc/tmpfs 各自赋值这些指针，实现多态</span>
+};
+<span class="code-comment">// 调用时：file->f_op->read(...) 就是"虚函数"调用</span></pre>
+</div>
+</div>
 
-    <h3 class="text-xl font-bold mt-8 mb-4">🔹 五大主轴（每模块定制）</h3>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm border-collapse">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2 text-left">主轴类型</th>
-            <th class="border p-2 text-left">本体发生点</th>
-            <th class="border p-2 text-left">适用模块</th>
-            <th class="border p-2 text-left">核心可视化</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="border p-2 font-bold text-[var(--indigo)]">分类驱动</td>
-            <td class="border p-2">继承/派生/插件体系</td>
-            <td class="border p-2">调度类、文件系统类型、协议族、拥塞控制算法</td>
-            <td class="border p-2">类层次图、插件注册链</td>
-          </tr>
-          <tr>
-            <td class="border p-2 font-bold text-[var(--vermillion)]">过程·状态驱动</td>
-            <td class="border p-2">状态机、时序流转、生命周期</td>
-            <td class="border p-2">TCP状态机、进程状态、中断处理流水线、sk_buff生命周期</td>
-            <td class="border p-2">状态迁移图、时序动画、数据流</td>
-          </tr>
-          <tr>
-            <td class="border p-2 font-bold text-[var(--jade)]">映射驱动</td>
-            <td class="border p-2">地址/命名空间转换、缓存</td>
-            <td class="border p-2">VFS挂载树、页表翻译、fd→file→inode映射、dentry cache</td>
-            <td class="border p-2">映射桑基图、缓存层级</td>
-          </tr>
-          <tr>
-            <td class="border p-2 font-bold text-[var(--gold)]">匹配驱动</td>
-            <td class="border p-2">注册-匹配-回调模式</td>
-            <td class="border p-2">设备模型bus-device-driver、Netfilter钩子、notifier链、文件系统类型注册</td>
-            <td class="border p-2">匹配流程图、钩子调用链</td>
-          </tr>
-          <tr>
-            <td class="border p-2 font-bold text-purple-600">边界驱动</td>
-            <td class="border p-2">资源隔离、委托、抽象</td>
-            <td class="border p-2">namespace、cgroup、KVM虚拟化、用户态/内核态边界、系统调用门</td>
-            <td class="border p-2">边界隔离图、特权级切换</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P1：container_of —— C 语言的"继承反解"</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">当一个结构体作为另一个结构体的第一个成员时，它的地址就是宿主的地址。container_of 通过"基类成员指针"反推出"派生类结构体"首地址，等价于 C++ 的 static_cast。</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C1：container_of 宏 <span class="badge badge-path">include/linux/kernel.h:866</span></div>
+<pre class="code-block"><span class="code-comment">/**
+ * container_of - 通过成员地址反推结构体首地址
+ * @ptr:    成员指针
+ * @type:   宿主结构体类型
+ * @member: 成员名
+ *
+ * 原理：结构体起始地址 = 成员地址 - 成员在结构体内的偏移
+ */</span>
+<span class="code-keyword">#define</span> <span class="code-func">container_of</span>(ptr, type, member) ({ \
+    <span class="code-keyword">void</span> *__mptr = (<span class="code-keyword">void</span> *)(ptr); \
+    ((type *)(__mptr - <span class="code-func">offsetof</span>(type, member))); })
 
-<!-- 进程调度本体 -->
-<section id="process" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">三、进程调度本体 · 分类+状态驱动</h2>
-    
-    <div class="flex gap-2 mb-6 flex-wrap">
-      <button class="tab-btn active px-4 py-2 rounded border" onclick="showProcTab('struct')">核心结构体</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showProcTab('schedclass')">调度类层级</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showProcTab('state')">状态机</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showProcTab('cfs')">CFS/EEVDF</button>
-    </div>
+<span class="code-comment">// 用法：list_entry(pos, struct task_struct, tasks)
+// 就能从 list_head 指针反推出 task_struct 地址</span></pre>
+</div>
+</div>
 
-    <div id="proc-struct" class="proc-tab">
-      <h3 class="text-xl font-bold mb-3">L1 结构本体：struct task_struct</h3>
-      <p class="mb-3">进程的身份证，包含超过300个字段，定义在 <code>include/linux/sched.h</code>，所有进程管理算法围绕它构建。</p>
-      <pre class="code-block">
-<span class="code-comment">// include/linux/sched.h 核心字段（6.12内核）</span>
-<span class="code-keyword">struct</span> <span class="code-type">task_struct</span> {
-    <span class="code-keyword">volatile long</span> <span class="code-field">state</span>;          <span class="code-comment">// 进程状态：TASK_RUNNING/INTERRUPTIBLE/UNINTERRUPTIBLE等</span>
-    <span class="code-keyword">void</span> *<span class="code-field">stack</span>;                <span class="code-comment">// 进程内核栈指针</span>
-    <span class="code-type">atomic_t</span> <span class="code-field">usage</span>;             <span class="code-comment">// 引用计数</span>
-    <span class="code-keyword">int</span> <span class="code-field">prio</span>, <span class="code-field">static_prio</span>, <span class="code-field">normal_prio</span>; <span class="code-comment">// 动态/静态/正常优先级</span>
-    <span class="code-keyword">unsigned int</span> <span class="code-field">rt_priority</span>; <span class="code-comment">// 实时优先级 0-99</span>
-    <span class="code-keyword">const struct</span> <span class="code-type">sched_class</span> *<span class="code-field">sched_class</span>; <span class="code-comment">// 所属调度类（插件入口）</span>
-    <span class="code-keyword">struct</span> <span class="code-type">sched_entity</span> <span class="code-field">se</span>;   <span class="code-comment">// 调度实体（CFS用）</span>
-    <span class="code-keyword">struct</span> <span class="code-type">sched_rt_entity</span> <span class="code-field">rt</span>; <span class="code-comment">// 实时调度实体</span>
-    <span class="code-keyword">struct</span> <span class="code-type">sched_dl_entity</span> <span class="code-field">dl</span>; <span class="code-comment">// deadline调度实体</span>
-    <span class="code-keyword">struct</span> <span class="code-type">mm_struct</span> *<span class="code-field">mm</span>;    <span class="code-comment">// 进程虚拟地址空间（内核线程为NULL）</span>
-    <span class="code-keyword">struct</span> <span class="code-type">files_struct</span> *<span class="code-field">files</span>; <span class="code-comment">// 打开的文件描述符表</span>
-    <span class="code-keyword">struct</span> <span class="code-type">fs_struct</span> *<span class="code-field">fs</span>;      <span class="code-comment">// 文件系统相关信息（cwd/root）</span>
-    <span class="code-type">pid_t</span> <span class="code-field">pid</span>;                  <span class="code-comment">// 进程ID</span>
-    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *<span class="code-field">parent</span>; <span class="code-comment">// 父进程</span>
-    <span class="code-keyword">struct</span> <span class="code-type">list_head</span> <span class="code-field">children</span>; <span class="code-comment">// 子进程链表</span>
-    <span class="code-keyword">struct</span> <span class="code-type">files_struct</span> *<span class="code-field">files</span>; <span class="code-comment">// 打开文件表</span>
-    <span class="code-keyword">struct</span> <span class="code-type">signal_struct</span> *<span class="code-field">signal</span>; <span class="code-comment">// 信号处理</span>
-    <span class="code-comment">// ... 共300+字段</span>
-};</pre>
-    </div>
-
-    <div id="proc-schedclass" class="proc-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：调度类五级优先级链表</h3>
-      <p class="mb-4">调度器采用插件式架构，<code>pick_next_task</code>按优先级从高到低遍历调度类，第一个返回非NULL的任务被选中执行：</p>
-      <div class="chart-container" id="schedClassChart"></div>
-      <pre class="code-block">
-<span class="code-comment">// kernel/sched/core.c 优先级从高到低</span>
-<span class="code-keyword">extern const struct</span> <span class="code-type">sched_class</span> <span class="code-field">stop_sched_class</span>;   <span class="code-comment">// 停机任务，最高优先级，抢占一切</span>
-<span class="code-keyword">extern const struct</span> <span class="code-type">sched_class</span> <span class="code-field">dl_sched_class</span>;     <span class="code-comment">// Deadline 限期任务，保证截止时间</span>
-<span class="code-keyword">extern const struct</span> <span class="code-type">sched_class</span> <span class="code-field">rt_sched_class</span>;     <span class="code-comment">// 实时任务 FIFO/RR，优先级0-99</span>
-<span class="code-keyword">extern const struct</span> <span class="code-type">sched_class</span> <span class="code-field">fair_sched_class</span>;   <span class="code-comment">// 普通进程 CFS/EEVDF，nice值-20~19</span>
-<span class="code-keyword">extern const struct</span> <span class="code-type">sched_class</span> <span class="code-field">idle_sched_class</span>;   <span class="code-comment">// 空闲任务，CPU无事可做时运行</span>
-
-<span class="code-comment">// sched_class 函数指针表（多态接口）</span>
-<span class="code-keyword">struct</span> <span class="code-type">sched_class</span> {
-    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> * (*<span class="code-field">pick_next_task</span>)(<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq);
-    <span class="code-keyword">void</span> (*<span class="code-field">enqueue_task</span>)(<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> flags);
-    <span class="code-keyword">void</span> (*<span class="code-field">dequeue_task</span>)(<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> flags);
-    <span class="code-keyword">void</span> (*<span class="code-field">task_tick</span>)(<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> queued);
-};</pre>
-    </div>
-
-    <div id="proc-state" class="proc-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：进程状态机</h3>
-      <div class="chart-container" id="procStateChart"></div>
-    </div>
-
-    <div id="proc-cfs" class="proc-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L3 语义本体：从CFS到EEVDF的公平演进</h3>
-      <p><strong>CFS（Completely Fair Scheduler，2.6.23引入）</strong>：用红黑树管理调度实体，vruntime记录进程已运行的虚拟时间，总是选vruntime最小的进程运行。nice值对应权重，nice 0权重1024，每差1级权重差约10%。</p>
-      <p class="mt-3"><strong>EEVDF（Earliest Eligible Virtual Deadline First，6.6内核正式取代CFS）</strong>：解决CFS在IO密集型与CPU密集型混部时的响应延迟问题，引入lag（虚拟时间亏欠）和virtual deadline概念，优先选"eligable且deadline最早"的实体，交互延迟降低约30%。</p>
-      <pre class="code-block">
-<span class="code-comment">// EEVDF 核心判定逻辑（kernel/sched/fair.c）</span>
-<span class="code-comment">// 1. 计算实体的lag = 应得运行时间 - 实际运行时间</span>
-<span class="code-comment">// 2. lag > 0 的实体为 eligible（有亏欠，有资格运行）</span>
-<span class="code-comment">// 3. 在 eligible 实体中选 virtual deadline 最早的</span>
-<span class="code-comment">// virtual_deadline = vruntime + slice / weight（权越小，deadline越短）</span></pre>
-    </div>
-  </div>
-</section>
-
-<!-- 内存管理本体 -->
-<section id="memory" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">四、内存管理本体 · 映射+分类驱动</h2>
-    
-    <div class="flex gap-2 mb-6 flex-wrap">
-      <button class="tab-btn active px-4 py-2 rounded border" onclick="showMemTab('struct')">核心结构体</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showMemTab('translate')">地址翻译</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showMemTab('allocator')">三级分配器</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showMemTab('cow')">写时复制</button>
-    </div>
-
-    <div id="mem-struct" class="mem-tab">
-      <h3 class="text-xl font-bold mb-3">L1 结构本体：三大基石结构体</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="p-4 bg-gray-50 rounded-lg">
-          <h4 class="font-bold text-[var(--indigo)] mb-2">struct page</h4>
-          <p class="text-sm mb-2">物理页框的身份证，系统中每个4KB页对应一个page实例，全局数组mem_map存储。极度节省空间，大量使用union和位域。</p>
-          <div class="text-xs text-gray-600">路径：include/linux/mm_types.h</div>
-        </div>
-        <div class="p-4 bg-gray-50 rounded-lg">
-          <h4 class="font-bold text-[var(--indigo)] mb-2">struct mm_struct</h4>
-          <p class="text-sm mb-2">进程虚拟地址空间总描述符，每个进程一个。包含pgd（页全局目录根）、mmap（VMA链表头）、mm_rb（VMA红黑树根）、代码/堆/栈边界。</p>
-          <div class="text-xs text-gray-600">路径：include/linux/mm_types.h</div>
-        </div>
-        <div class="p-4 bg-gray-50 rounded-lg">
-          <h4 class="font-bold text-[var(--indigo)] mb-2">struct vm_area_struct</h4>
-          <p class="text-sm mb-2">一段连续虚拟地址区间（VMA），相同权限/属性。用链表+红黑树双组织：链表便于遍历，红黑树便于O(log n)查找地址所属VMA。缺页异常核心查找对象。</p>
-          <div class="text-xs text-gray-600">路径：include/linux/mm_types.h</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="mem-translate" class="mem-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：四级页表地址翻译（x86_64）</h3>
-      <div class="chart-container" id="pageTableChart"></div>
-      <p class="text-sm mt-4">64位虚拟地址拆分为9+9+9+9+12位，逐级查找：PGD→PUD→PMD→PTE→物理页+页内偏移。TLB缓存最近翻译结果，未命中才走页表遍历。</p>
-    </div>
-
-    <div id="mem-allocator" class="mem-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：三级内存分配器</h3>
-      <div class="space-y-4 mt-4">
-        <div class="p-4 border-l-4 border-red-500 bg-red-50">
-          <h4 class="font-bold">伙伴系统（Buddy System）</h4>
-          <p class="text-sm">管理连续物理页框，分配阶数0~10（4KB~4MB）。核心算法：找最小满足阶的块，不够则分裂大块为两个伙伴；释放时检查伙伴是否空闲，是则合并。解决外碎片问题。</p>
-          <div class="text-xs text-gray-600">源码：mm/page_alloc.c</div>
-        </div>
-        <div class="p-4 border-l-4 border-yellow-500 bg-yellow-50">
-          <h4 class="font-bold">Slab/Slub/Slob分配器</h4>
-          <p class="text-sm">基于伙伴系统提供小内存（小于一页）分配，为常用对象（task_struct/inode/sk_buff等）建立专用缓存池，复用已释放对象，避免初始化开销。默认用Slub（更高效）。</p>
-          <div class="text-xs text-gray-600">源码：mm/slub.c</div>
-        </div>
-        <div class="p-4 border-l-4 border-blue-500 bg-blue-50">
-          <h4 class="font-bold">vmalloc</h4>
-          <p class="text-sm">分配虚拟地址连续但物理地址不连续的内存，用于不需要物理连续的大内存分配。通过修改页表建立映射，有一定开销，不用于DMA。</p>
-          <div class="text-xs text-gray-600">源码：mm/vmalloc.c</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="mem-cow" class="mem-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L3 语义本体：写时复制（Copy-On-Write）——缘起性空的极致体现</h3>
-      <p>fork()创建子进程时并不复制全部内存页，而是让父子进程共享所有页表项，页标记为只读。当任何一方尝试写入时，触发缺页异常，内核此时才复制该物理页，各自拥有独立副本。</p>
-      <p class="mt-3">哲学对应：未写时共享是"性空"，写入时复制是"缘起"，惰性计算、按需分配，最小化不必要的劳动——这与佛教"应无所住而生其心"异曲同工。</p>
-    </div>
-  </div>
-</section>
-
-<!-- 中断机制本体 -->
-<section id="irq" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">五、中断机制本体 · 过程驱动</h2>
-    <h3 class="text-xl font-bold mb-4">三级中断流水线：上半部快速响应，下半部延迟处理</h3>
-    <p class="mb-6">中断的核心矛盾：必须足够快响应硬件（否则丢数据），但处理逻辑可能很复杂（否则占用CPU太久）。Linux的解决方案是分层：</p>
-    
-    <div class="relative w-full h-64 my-8" id="irqPipeline">
-      <svg width="100%" height="100%" viewBox="0 0 900 200">
-        <!-- 层 -->
-        <rect x="50" y="30" width="200" height="140" fill="#fee2e2" stroke="#ef4444" stroke-width="2" rx="8"/>
-        <text x="150" y="70" text-anchor="middle" font-weight="bold" fill="#b91c1c" font-size="18">硬中断（Top Half）</text>
-        <text x="150" y="100" text-anchor="middle" font-size="13" fill="#7f1d1d">执行时间: 微秒级</text>
-        <text x="150" y="120" text-anchor="middle" font-size="13" fill="#7f1d1d">不可睡眠</text>
-        <text x="150" y="140" text-anchor="middle" font-size="13" fill="#7f1d1d">关部分中断</text>
-        <text x="150" y="160" text-anchor="middle" font-size="13" fill="#7f1d1d">做: 响应硬件、清中断、拷数据</text>
-
-        <rect x="350" y="30" width="200" height="140" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="8"/>
-        <text x="450" y="70" text-anchor="middle" font-weight="bold" fill="#92400e" font-size="18">软中断（softirq）</text>
-        <text x="450" y="100" text-anchor="middle" font-size="13" fill="#78350f">执行时间: 毫秒级</text>
-        <text x="450" y="120" text-anchor="middle" font-size="13" fill="#78350f">中断上下文</text>
-        <text x="450" y="140" text-anchor="middle" font-size="13" fill="#78350f">ksoftirqd/N内核线程</text>
-        <text x="450" y="160" text-anchor="middle" font-size="13" fill="#78350f">做: 网络收发包、块设备IO</text>
-
-        <rect x="650" y="30" width="200" height="140" fill="#dcfce7" stroke="#22c55e" stroke-width="2" rx="8"/>
-        <text x="750" y="70" text-anchor="middle" font-weight="bold" fill="#166534" font-size="18">工作队列（workqueue）</text>
-        <text x="750" y="100" text-anchor="middle" font-size="13" fill="#14532d">执行时间: 无限制</text>
-        <text x="750" y="120" text-anchor="middle" font-size="13" fill="#14532d">进程上下文</text>
-        <text x="750" y="140" text-anchor="middle" font-size="13" fill="#14532d">可睡眠可调度</text>
-        <text x="750" y="160" text-anchor="middle" font-size="13" fill="#14532d">做: 复杂后续处理</text>
-
-        <!-- 箭头与动画包 -->
-        <path d="M250 100 L350 100" stroke="#b8860b" stroke-width="2" marker-end="url(#arrow)"/>
-        <path d="M550 100 L650 100" stroke="#b8860b" stroke-width="2" marker-end="url(#arrow)"/>
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#b8860b"/>
-          </marker>
-        </defs>
-
-        <rect class="packet" x="260" y="90" width="30" height="20"/>
-      </svg>
-    </div>
-
-    <h3 class="text-xl font-bold mt-8 mb-3">L1 结构本体：struct irq_desc 中断描述符</h3>
-    <pre class="code-block">
-<span class="code-comment">// include/linux/irqdesc.h 每个中断号对应一个</span>
-<span class="code-keyword">struct</span> <span class="code-type">irq_desc</span> {
-    <span class="code-keyword">struct</span> <span class="code-type">irq_data</span> <span class="code-field">irq_data</span>;        <span class="code-comment">// 中断芯片、硬件中断号、状态</span>
-    <span class="code-keyword">struct</span> <span class="code-type">irqaction</span> *<span class="code-field">action</span>;    <span class="code-comment">// 中断处理函数链表（共享中断）</span>
-    <span class="code-keyword">const char</span> *<span class="code-field">name</span>;          <span class="code-comment">// 中断名称，/proc/interrupts可见</span>
-    <span class="code-type">unsigned int</span> <span class="code-field">number</span>;       <span class="code-comment">// Linux虚拟中断号</span>
-    <span class="code-keyword">struct</span> <span class="code-type">irq_chip</span> *<span class="code-field">chip</span>;     <span class="code-comment">// 中断控制器操作（mask/unmask/ack）</span>
-};</pre>
-
-    <h3 class="text-xl font-bold mt-6 mb-3">L3 语义本体：NAPI——中断+轮询的中道智慧</h3>
-    <p>纯中断：高流量下中断风暴，CPU全在处理中断，活都干不完；纯轮询：低流量下浪费CPU空转。NAPI采用混合模式：第一个包到来触发硬中断，之后关闭中断进入轮询模式处理一批包，处理完再开中断。高流量时近似轮询效率，低流量时近似中断低延迟，是"行于中道"的典型设计。</p>
-  </div>
-</section>
-
-<!-- TCP/IP协议栈本体（重点深度） -->
-<section id="tcpip" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">六、TCP/IP协议栈本体 · 状态+过程驱动（重点子模块）</h2>
-    <p class="mb-6">TCP/IP协议栈是内核中最复杂的子系统，本身构成一个自洽的本体论体系：以sk_buff为血脉，以四层封装为流转，以TCP状态机为因果，以Netfilter为关口。</p>
-
-    <div class="flex gap-2 mb-6 flex-wrap">
-      <button class="tab-btn active px-4 py-2 rounded border" onclick="showNetTab('skb')">sk_buff核心</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showNetTab('layering')">四层封装流转</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showNetTab('tcp')">TCP状态机</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showNetTab('netfilter')">Netfilter五钩子</button>
-      <button class="tab-btn px-4 py-2 rounded border" onclick="showNetTab('congestion')">拥塞控制</button>
-    </div>
-
-    <div id="net-skb" class="net-tab">
-      <h3 class="text-xl font-bold mb-3">L1 结构本体：sk_buff——网络包的血脉</h3>
-      <p>sk_buff（socket buffer）是贯穿整个网络栈的核心数据结构，从网卡驱动接收一直到用户态read，所有协议层操作都通过移动指针实现零拷贝逐层加头/去头：</p>
-      
-      <div class="relative w-full h-60 my-6 bg-gray-50 rounded-lg p-4" id="skbLayout">
-        <svg width="100%" height="100%" viewBox="0 0 800 200">
-          <!-- 缓冲区整体 -->
-          <rect x="50" y="80" width="700" height="40" fill="#e5e7eb" stroke="#9ca3af" rx="4"/>
-          <text x="400" y="140" text-anchor="middle" font-size="12" fill="#6b7280">sk_buff 线性数据缓冲区（head -> end）</text>
-          
-          <!-- 四层包头 -->
-          <rect x="100" y="80" width="60" height="40" fill="#fecaca" stroke="#ef4444" rx="2"/>
-          <text x="130" y="105" text-anchor="middle" font-size="11" font-weight="bold" fill="#b91c1c">Ethernet</text>
-          
-          <rect x="160" y="80" width="60" height="40" fill="#fed7aa" stroke="#f97316" rx="2"/>
-          <text x="190" y="105" text-anchor="middle" font-size="11" font-weight="bold" fill="#c2410c">IP</text>
-          
-          <rect x="220" y="80" width="60" height="40" fill="#fde047" stroke="#eab308" rx="2"/>
-          <text x="250" y="105" text-anchor="middle" font-size="11" font-weight="bold" fill="#a16207">TCP</text>
-          
-          <rect x="280" y="80" width="350" height="40" fill="#bbf7d0" stroke="#22c55e" rx="2"/>
-          <text x="455" y="105" text-anchor="middle" font-size="11" font-weight="bold" fill="#166534">应用层数据 (payload)</text>
-
-          <!-- 指针 -->
-          <line x1="100" y1="70" x2="100" y2="50" stroke="#ef4444" stroke-width="2"/>
-          <text x="100" y="40" text-anchor="middle" font-size="12" font-weight="bold" fill="#ef4444">head</text>
-          
-          <line x1="100" y1="80" x2="100" y2="75" stroke="#f97316" stroke-width="2"/>
-          <text x="100" y="170" text-anchor="middle" font-size="12" font-weight="bold" fill="#f97316">data (mac)</text>
-          
-          <line x1="160" y1="80" x2="160" y2="170" stroke="#f97316" stroke-width="2"/>
-          <text x="160" y="185" text-anchor="middle" font-size="12" font-weight="bold" fill="#f97316">network_header</text>
-          
-          <line x1="220" y1="80" x2="220" y2="170" stroke="#eab308" stroke-width="2"/>
-          <text x="220" y="185" text-anchor="middle" font-size="12" font-weight="bold" fill="#eab308">transport_header</text>
-          
-          <line x1="630" y1="80" x2="630" y2="170" stroke="#22c55e" stroke-width="2"/>
-          <text x="630" y="185" text-anchor="middle" font-size="12" font-weight="bold" fill="#22c55e">tail</text>
-          
-          <line x1="750" y1="70" x2="750" y2="50" stroke="#9ca3af" stroke-width="2"/>
-          <text x="750" y="40" text-anchor="middle" font-size="12" font-weight="bold" fill="#6b7280">end</text>
-
-          <text x="400" y="20" text-anchor="middle" font-size="14" fill="#1f2937">sk_buff 指针布局：发送时从tail开始，逐层向前push加头；接收时从data开始逐层pull去头</text>
-        </svg>
-      </div>
-
-      <pre class="code-block">
-<span class="code-comment">// include/linux/skbuff.h 核心字段</span>
-<span class="code-keyword">struct</span> <span class="code-type">sk_buff</span> {
-    <span class="code-keyword">struct</span> <span class="code-type">sk_buff</span> *<span class="code-field">next</span>, *<span class="code-field">prev</span>;  <span class="code-comment">// 双向链表，挂在发送/接收队列</span>
-    <span class="code-keyword">struct</span> <span class="code-type">sock</span> *<span class="code-field">sk</span>;             <span class="code-comment">// 所属socket</span>
-    <span class="code-keyword">struct</span> <span class="code-type">net_device</span> *<span class="code-field">dev</span>;    <span class="code-comment">// 收发网卡</span>
-    
-    <span class="code-comment">// 四大核心指针：零拷贝分层关键</span>
-    <span class="code-keyword">unsigned char</span> *<span class="code-field">head</span>, *<span class="code-field">data</span>, *<span class="code-field">tail</span>, *<span class="code-field">end</span>;
-    
-    <span class="code-comment">// 各层首部指针，由各层设置</span>
-    <span class="code-keyword">struct</span> <span class="code-type">ethhdr</span> *<span class="code-field">mac_header</span>;
-    <span class="code-keyword">struct</span> <span class="code-type">iphdr</span> *<span class="code-field">network_header</span>;
-    <span class="code-keyword">struct</span> <span class="code-type">tcphdr</span> *<span class="code-field">transport_header</span>;
-    
-    <span class="code-type">__u32</span> <span class="code-field">len</span>;               <span class="code-comment">// 数据总长度</span>
-    <span class="code-type">__be16</span> <span class="code-field">protocol</span>;         <span class="code-comment">// 上层协议类型（ETH_P_IP等）</span>
-    <span class="code-type">ktime_t</span> <span class="code-field">tstamp</span>;         <span class="code-comment">// 收包时间戳</span>
-};</pre>
-    </div>
-
-    <div id="net-layering" class="net-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：顺逆缘起——发送封装与接收解封装</h3>
-      <p><strong>发送路径（顺缘起）</strong>：应用层write() → 传输层加TCP头 → 网络层加IP头 → 链路层加Ethernet头 → 网卡驱动发送。每一层只移动data指针向前push，不拷贝数据。</p>
-      <p class="mt-2 mb-4"><strong>接收路径（逆缘起）</strong>：网卡硬中断收包 → 链路层校验去掉Ethernet头 → 网络层路由去掉IP头 → 传输层处理TCP/UDP → 放入socket接收队列 → 应用层read()。每一层pull掉本层头部。</p>
-      
-      <div class="chart-container" id="tcpFlowChart"></div>
-    </div>
-
-    <div id="net-tcp" class="net-tab hidden">
-      <h3 class="text-xl font-bold mb-3">L2 行为本体：TCP状态机——11个状态的因果流转</h3>
-      <div class="chart-container" id="tcpStateChart"></div>
-      <div class="mt-4 space-y-3">
-        <p><strong>三次握手</strong>：CLOSED → SYN_SENT → ESTABLISHED（主动打开）；CLOSED → LISTEN → SYN_RECV → ESTABLISHED（被动打开）。三事和合（client SYN、server SYN+ACK、client ACK），连接方成。</p>
-        <p><strong>四次挥手</strong>：ESTABLISHED → FIN_WAIT1 → FIN_WAIT2 → TIME_WAIT → CLOSED（主动关闭）；ESTABLISHED → CLOSE_WAIT → LAST_ACK → CLOSED（被动关闭）。TIME_WAIT等待2MSL确保最后一个ACK被对方收到，是对因果负责。</p>
-        <p><strong>运维三大坑</strong>：SYN_RECV洪泛攻击、CLOSE_WAIT泄漏（应用没调close）、TIME_WAIT过多（短连接）。</p>
-      </div>
-    </div>
-
-    <div id="net-netfilter" class="net-tab hidden">
-      <h3 class="text-xl font-bold mb-3">匹配驱动本体：Netfilter五钩子——因果关口</h3>
-      <p>Netfilter在网络栈五个关键点设置钩子，iptables/nftables规则挂在钩子上，实现防火墙、NAT、连接跟踪功能，是典型的匹配-回调架构：</p>
-      <div class="chart-container" id="netfilterChart"></div>
-      <pre class="code-block">
-<span class="code-comment">// include/linux/netfilter.h 五个钩子点</span>
-<span class="code-keyword">enum</span> <span class="code-type">nf_inet_hooks</span> {
-    <span class="code-field">NF_INET_PRE_ROUTING</span>,  <span class="code-comment">// 刚进入网络层，还没路由，DNAT在这里</span>
-    <span class="code-field">NF_INET_LOCAL_IN</span>,     <span class="code-comment">// 路由后确定是发往本机，INPUT防火墙</span>
-    <span class="code-field">NF_INET_FORWARD</span>,      <span class="code-comment">// 路由后需要转发，FORWARD防火墙</span>
-    <span class="code-field">NF_INET_LOCAL_OUT</span>,    <span class="code-comment">// 本机进程发出的包，OUTPUT防火墙</span>
-    <span class="code-field">NF_INET_POST_ROUTING</span>, <span class="code-comment">// 即将发出网卡，SNAT在这里</span>
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P2：一切皆链表（list_head）</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">内核不搞侵入式链表，而是让 list_head 作为成员嵌入任何结构。用同一套 list_add/list_del/list_for_each 宏遍历所有对象——进程、文件、inode、设备、定时器…… 这是"多态容器"的极简实现。</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C2：双向循环链表 <span class="badge badge-path">include/linux/list.h:22</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">list_head</span> {
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span> *next, *prev;
 };
 
-<span class="code-comment">// conntrack连接跟踪：阿赖耶识，记录所有连接状态，NAT依赖它</span></pre>
-    </div>
+<span class="code-keyword">static inline void</span> <span class="code-func">__list_add</span>(<span class="code-keyword">struct</span> <span class="code-type">list_head</span> *new,
+                              <span class="code-keyword">struct</span> <span class="code-type">list_head</span> *prev,
+                              <span class="code-keyword">struct</span> <span class="code-type">list_head</span> *next) {
+    next->prev = new;
+    new->next = next;
+    new->prev = prev;
+    prev->next = new;
+}
 
-    <div id="net-congestion" class="net-tab hidden">
-      <h3 class="text-xl font-bold mb-3">分类驱动本体：拥塞控制——可插拔算法框架</h3>
-      <p>拥塞控制通过<code>tcp_congestion_ops</code>函数指针表实现插件化，内核支持多个算法动态切换：</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div class="p-4 bg-blue-50 rounded-lg">
-          <h4 class="font-bold text-blue-800">CUBIC（默认）</h4>
-          <p class="text-sm">基于三次函数的窗口增长曲线，窗口增长与RTT无关，对不同RTT流公平，适用于长肥管道。丢包后乘法减小，然后按三次函数快速恢复到公平窗口。</p>
-        </div>
-        <div class="p-4 bg-purple-50 rounded-lg">
-          <h4 class="font-bold text-purple-800">BBR（Google，4.9引入）</h4>
-          <p class="text-sm">基于带宽和延迟乘积模型，不把丢包作为拥塞信号，而是主动探测最大带宽和最小RTT，在长肥管道和跨洋链路上吞吐量比CUBIC高2-10倍，不制造buffer bloat。</p>
-        </div>
-      </div>
-      <div class="chart-container mt-4" id="congestionChart"></div>
-    </div>
-  </div>
+<span class="code-comment">// 遍历：list_for_each(pos, &init_task.tasks) 即可遍历所有进程</span>
+<span class="code-keyword">#define</span> <span class="code-func">list_for_each</span>(pos, head) \
+    <span class="code-keyword">for</span> (pos = (head)->next; pos != (head); pos = pos->next)</pre>
+</div>
+</div>
 </section>
 
-<!-- VFS文件系统 -->
-<section id="vfs" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">七、文件系统本体 · 映射+分类驱动</h2>
-    <h3 class="text-xl font-bold mb-4">VFS四大对象：一切皆文件的抽象基石</h3>
-    <div class="chart-container" id="vfsChart"></div>
-    <p class="mt-4">VFS通过四大对象抽象，统一了ext4/XFS/Btrfs等磁盘文件系统、proc/sysfs等伪文件系统、tmpfs内存文件系统、FUSE用户态文件系统、socket/pipe等特殊文件，所有文件都通过统一的file_operations接口访问，实现了"一切皆文件"的哲学。</p>
-  </div>
+<section id="s1">
+<h2>第一章 · 进程管理</h2>
+<div class="principle-box" style="margin-bottom:1.5rem;">
+<strong>本体论核心：</strong>进程是资源分配的单位，线程是调度执行的单位。在 Linux 里二者合一——线程只是"和别人共享地址空间的进程"。所有运行实体都由 <code>struct task_struct</code> 这一单一数据结构描述，这是整个内核"最肥胖也是最重要的结构体"。
+</div>
 </section>
 
-<!-- 驱动与虚拟化 -->
-<section id="driver" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">八、驱动与虚拟化本体 · 匹配+边界驱动</h2>
-    
-    <h3 class="text-xl font-bold mb-3">设备模型：bus-device-driver三位一体</h3>
-    <p>Linux设备模型是面向对象设计在C语言中的典范：kobject提供引用计数和sysfs基础，bus_type是总线，device是设备，driver是驱动。总线负责匹配，匹配成功调用driver的probe()函数完成初始化。</p>
-    <div class="chart-container" id="driverChart"></div>
+<section id="s1-1">
+<h3>1.1 task_struct：进程本体的数据化身</h3>
 
-    <h3 class="text-xl font-bold mt-8 mb-3">容器虚拟化：namespace边界隔离 + cgroup资源限制</h3>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">Mount (mnt)</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">PID</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">Network (net)</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">IPC</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">UTS (hostname)</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">User (uid)</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">Cgroup</div>
-      <div class="p-3 bg-gray-50 rounded text-center text-sm font-medium">Time</div>
-    </div>
-    <p class="mt-4 text-sm">8类namespace实现视图隔离，每个容器看到独立的进程树、网络栈、挂载点；cgroup v2实现CPU/内存/IO等资源配额限制。二者结合实现轻量级虚拟化，共享内核没有虚拟化开销。</p>
-  </div>
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P3：一个进程 = 一个 task_struct</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+PCB（进程控制块）在 Linux 中具体化为 task_struct。它聚合了进程的全部属性：<br>
+• 身份：pid、uid/gid、creds<br>
+• 调度：state、policy、prio、se<br>
+• 地址空间：mm（内核线程 mm=NULL）<br>
+• 文件系统：fs、files<br>
+• 信号：sighand、signal、blocked<br>
+• 关系：real_parent、children、sibling<br>
+• 关系链表：tasks（链接所有进程）
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C3：task_struct 核心字段 <span class="badge badge-path">include/linux/sched.h:728</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">task_struct</span> {
+    <span class="code-keyword">volatile long</span>            state;       <span class="code-comment">// 进程状态（TASK_RUNNING等）</span>
+    <span class="code-keyword">void</span>                     *stack;      <span class="code-comment">// 内核栈指针</span>
+    <span class="code-type">pid_t</span>                     pid;        <span class="code-comment">// 进程ID</span>
+    <span class="code-type">pid_t</span>                     tgid;       <span class="code-comment">// 线程组ID（用户视角的pid）</span>
+
+    <span class="code-keyword">struct</span> <span class="code-type">sched_entity</span>       se;          <span class="code-comment">// 普通调度实体（CFS使用）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">sched_rt_entity</span>    rt;          <span class="code-comment">// 实时调度实体</span>
+    <span class="code-type">int</span>                       prio;        <span class="code-comment">// 动态优先级</span>
+    <span class="code-keyword">const struct</span> <span class="code-type">sched_class</span> *sched_class;<span class="code-comment">// 所使用的调度类（多态）</span>
+
+    <span class="code-keyword">struct</span> <span class="code-type">mm_struct</span>         *mm;         <span class="code-comment">// 用户态地址空间（内核线程为NULL）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">mm_struct</span>         *active_mm;  <span class="code-comment">// 内核线程借用的地址空间</span>
+
+    <span class="code-keyword">struct</span> <span class="code-type">files_struct</span>      *files;      <span class="code-comment">// 打开文件表</span>
+    <span class="code-keyword">struct</span> <span class="code-type">fs_struct</span>         *fs;         <span class="code-comment">// 文件系统信息（cwd/root）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">nsproxy</span>          *nsproxy;    <span class="code-comment">// 命名空间</span>
+
+    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> __rcu *real_parent;<span class="code-comment">// 真正的父进程</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span>         children;    <span class="code-comment">// 子进程链表</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span>         sibling;     <span class="code-comment">// 兄弟链表</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span>         tasks;       <span class="code-comment">// 全局进程链表节点</span>
+
+    <span class="code-keyword">struct</span> <span class="code-type">signal_struct</span>     *signal;     <span class="code-comment">// 共享信号处理</span>
+    <span class="code-keyword">struct</span> <span class="code-type">sighand_struct</span>    *sighand;    <span class="code-comment">// 信号处理器</span>
+    <span class="code-type">sigset_t</span>                  blocked;     <span class="code-comment">// 阻塞信号掩码</span>
+
+    <span class="code-comment">// …… 实际定义超过 400 行，这里只展示核心骨架</span>
+};</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P4：当前进程 = current 宏</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+任何时刻，CPU 正在执行的那个 task_struct 可用 current 宏取到。x86_64 实现利用 <code>current_task</code> per-cpu 变量，不涉及栈指针计算。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C4：current 宏实现 <span class="badge badge-path">arch/x86/include/asm/current.h:12</span></div>
+<pre class="code-block"><span class="code-keyword">DECLARE_PER_CPU</span>(<span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *, current_task);
+
+<span class="code-keyword">static __always_inline struct</span> <span class="code-type">task_struct</span> *<span class="code-func">get_current</span>(<span class="code-keyword">void</span>)
+{
+    <span class="code-keyword">return</span> this_cpu_read_stable(current_task);
+}
+
+<span class="code-keyword">#define</span> <span class="code-func">current</span> get_current()
+
+<span class="code-comment">// 于是内核代码可以随处写：current->pid、current->mm</span></pre>
+</div>
+</div>
 </section>
 
-<!-- 系统调用 -->
-<section id="syscall" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">九、系统调用门 · 边界驱动</h2>
-    <p>系统调用是用户态（Ring3）进入内核态（Ring0）的唯一官方入口。x86_64下通过<code>syscall</code>指令触发，参数放在rdi/rsi/rdx/r10/r8/r9寄存器，系统调用号放在rax，执行后切换到内核栈，查系统调用表分发到对应处理函数。</p>
-    <div class="mt-6 overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="p-2 border">类别</th>
-            <th class="p-2 border">典型调用</th>
-            <th class="p-2 border">rax编号</th>
-            <th class="p-2 border">功能</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td class="p-2 border" rowspan="4">文件IO</td><td class="p-2 border">openat</td><td class="p-2 border">257</td><td class="p-2 border">打开文件</td></tr>
-          <tr><td class="p-2 border">read</td><td class="p-2 border">0</td><td class="p-2 border">读文件</td></tr>
-          <tr><td class="p-2 border">write</td><td class="p-2 border">1</td><td class="p-2 border">写文件</td></tr>
-          <tr><td class="p-2 border">close</td><td class="p-2 border">3</td><td class="p-2 border">关闭文件</td></tr>
-          <tr><td class="p-2 border" rowspan="3">进程内存</td><td class="p-2 border">fork</td><td class="p-2 border">57</td><td class="p-2 border">创建子进程（COW）</td></tr>
-          <tr><td class="p-2 border">execve</td><td class="p-2 border">59</td><td class="p-2 border">执行新程序</td></tr>
-          <tr><td class="p-2 border">mmap</td><td class="p-2 border">9</td><td class="p-2 border">映射内存/文件</td></tr>
-          <tr><td class="p-2 border" rowspan="3">网络Socket</td><td class="p-2 border">socket</td><td class="p-2 border">41</td><td class="p-2 border">创建socket</td></tr>
-          <tr><td class="p-2 border">bind</td><td class="p-2 border">49</td><td class="p-2 border">绑定地址</td></tr>
-          <tr><td class="p-2 border">accept</td><td class="p-2 border">43</td><td class="p-2 border">接收连接</td></tr>
-          <tr><td class="p-2 border" rowspan="2">高级IO</td><td class="p-2 border">epoll_wait</td><td class="p-2 border">232</td><td class="p-2 border">IO多路复用</td></tr>
-          <tr><td class="p-2 border">io_uring_enter</td><td class="p-2 border">426</td><td class="p-2 border">异步IO（5.1+）</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+<section id="s1-2">
+<h3>1.2 进程创建：fork 复制本体</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P5：fork 的哲学——"复制但不立即复制"</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+fork 创建新进程的本体论：父=子在"诞生瞬间"完全相同，随后各自通过 exec 或写内存走向不同命运。<br>
+• 传统 fork 是全拷贝，开销大<br>
+• Linux 用「写时复制 COW」优化：页表先共享，写时才复制物理页<br>
+• clone 比 fork 更灵活：可精确选择共享哪些资源（fs/files/sighand/mm...）<br>
+• vfork：连页表都不复制，直接阻塞父进程，子进程必须马上 exec
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C5：fork/vfork/clone 统一入口 <span class="badge badge-path">kernel/fork.c:2653</span></div>
+<pre class="code-block"><span class="code-comment">// 三个系统调用最终都调 _do_fork</span>
+<span class="code-type">SYSCALL_DEFINE0</span>(fork)   { <span class="code-keyword">return</span> _do_fork(SIGCHLD, 0, 0, NULL, NULL, 0); }
+<span class="code-type">SYSCALL_DEFINE0</span>(vfork)  { <span class="code-keyword">return</span> _do_fork(CLONE_VFORK|CLONE_VM|SIGCHLD, 0, 0, NULL, NULL, 0); }
+<span class="code-type">SYSCALL_DEFINE5</span>(clone, ...) { <span class="code-keyword">return</span> _do_fork(clone_flags, newsp, 0, parent_tidptr, child_tidptr, tls); }
+
+<span class="code-comment">// 核心链路：copy_process → dup_task_struct → copy_* → wake_up_new_task</span>
+<span class="code-keyword">static __latent_entropy struct</span> <span class="code-type">task_struct</span> *<span class="code-func">copy_process</span>(...)
+{
+    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p;
+    p = <span class="code-func">dup_task_struct</span>(current, node);     <span class="code-comment">// 1. 复制 task_struct + 内核栈</span>
+    <span class="code-func">copy_creds</span>(p, clone_flags);            <span class="code-comment">// 2. 复制凭证</span>
+    <span class="code-func">copy_semundo</span>(clone_flags, p);
+    <span class="code-func">copy_files</span>(clone_flags, p);            <span class="code-comment">// 3. 文件描述符表</span>
+    <span class="code-func">copy_fs</span>(clone_flags, p);               <span class="code-comment">// 4. fs(cwd/root)</span>
+    <span class="code-func">copy_sighand</span>(clone_flags, p);          <span class="code-comment">// 5. 信号处理器</span>
+    <span class="code-func">copy_signal</span>(clone_flags, p);
+    <span class="code-func">copy_mm</span>(clone_flags, p);               <span class="code-comment">// 6. 地址空间（COW 就在这里设置）</span>
+    <span class="code-func">copy_thread</span>(clone_flags, sp, arg, p);  <span class="code-comment">// 7. 设置寄存器上下文</span>
+    <span class="code-keyword">return</span> p;
+}</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P6：写时复制（COW）的落地</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+copy_mm 中，子进程页表项与父进程共享物理页，但都标记为"只读"。当任一进程写该页时触发 page fault，缺页处理中才真正分配新物理页并复制——这就是 dup 之后"看似分开、实际共享"的物理意义。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C6：COW 缺页处理 <span class="badge badge-path">mm/memory.c:2984 (do_wp_page)</span></div>
+<pre class="code-block"><span class="code-keyword">static vm_fault_t</span> <span class="code-func">do_wp_page</span>(<span class="code-keyword">struct</span> <span class="code-type">vm_fault</span> *vmf)
+{
+    <span class="code-keyword">struct</span> <span class="code-type">page</span> *old_page = vmf->page;
+    <span class="code-keyword">struct</span> <span class="code-type">page</span> *new_page;
+
+    <span class="code-comment">// 如果旧页面引用计数 == 1，说明只有我在用，直接把只读变可写（无需复制）</span>
+    <span class="code-keyword">if</span> (page_count(old_page) == 1) {
+        <span class="code-func">wp_page_reuse</span>(vmf);
+        <span class="code-keyword">return</span> 0;
+    }
+
+    <span class="code-comment">// 引用计数 >1，说明还有别人共享：必须分配新页复制旧内容</span>
+    new_page = <span class="code-func">alloc_page_vma</span>(GFP_HIGHUSER_MOVABLE, vmf->vma, vmf->address);
+    <span class="code-func">cow_user_page</span>(new_page, vmf->address, vma, old_page); <span class="code-comment">// 真正复制 4KB 数据</span>
+    <span class="code-func">wp_page_copy</span>(vmf, new_page);     <span class="code-comment">// 让我的页表指向新页，并设为可写</span>
+    <span class="code-keyword">return</span> 0;
+}</pre>
+</div>
+</div>
+
+<h4>fork 完整调用链路（原理 ⇄ 函数 ⇄ 代码行 一一对应）</h4>
+<table>
+<thead><tr><th>步骤</th><th>原理（为什么要做）</th><th>调用函数</th><th>源码位置</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>用户态调用 fork() 触发 0x80/syscall</td><td>entry_SYSCALL_64</td><td>arch/x86/entry/entry_64.S</td></tr>
+<tr><td>2</td><td>系统调用分派到 SYSCALL_DEFINE0(fork)</td><td>sys_fork → _do_fork</td><td>kernel/fork.c:2653</td></tr>
+<tr><td>3</td><td>复制 task_struct 本体与内核栈</td><td>dup_task_struct()</td><td>kernel/fork.c:917</td></tr>
+<tr><td>4</td><td>分配新 PID</td><td>alloc_pid()</td><td>kernel/pid.c:298</td></tr>
+<tr><td>5</td><td>逐一拷贝资源（文件/signal/mm/...）</td><td>copy_*() 系列</td><td>kernel/fork.c 内</td></tr>
+<tr><td>6</td><td>写时复制：页表共享、写保护</td><td>copy_page_range() 设只读</td><td>mm/memory.c:1110</td></tr>
+<tr><td>7</td><td>设置子进程内核栈与返回点为 ret_from_fork</td><td>copy_thread_tls()</td><td>arch/x86/kernel/process.c:185</td></tr>
+<tr><td>8</td><td>挂入运行队列，等 CPU 调度</td><td>wake_up_new_task()</td><td>kernel/sched/core.c:4829</td></tr>
+<tr><td>9</td><td>父返回子 pid，子返回 0</td><td>——</td><td>——</td></tr>
+</tbody></table>
 </section>
 
-<!-- 跨模块知识图谱 -->
-<section id="graph" class="section">
-  <div class="card">
-    <h2 class="text-3xl font-bold mb-4 text-[var(--vermillion)]">十、跨模块本体知识图谱</h2>
-    <p class="mb-4">所有核心本体实体及其关联关系，可拖拽缩放，点击节点高亮邻接：</p>
-    <div class="flex gap-2 mb-4 flex-wrap">
-      <button onclick="filterGraph('all')" class="px-3 py-1 bg-gray-100 rounded text-sm">全部</button>
-      <button onclick="filterGraph('process')" class="px-3 py-1 bg-red-100 text-red-800 rounded text-sm">进程调度</button>
-      <button onclick="filterGraph('memory')" class="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">内存管理</button>
-      <button onclick="filterGraph('irq')" class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">中断</button>
-      <button onclick="filterGraph('net')" class="px-3 py-1 bg-green-100 text-green-800 rounded text-sm">TCP/IP</button>
-      <button onclick="filterGraph('fs')" class="px-3 py-1 bg-purple-100 text-purple-800 rounded text-sm">文件系统</button>
-      <button onclick="filterGraph('driver')" class="px-3 py-1 bg-orange-100 text-orange-800 rounded text-sm">驱动虚拟化</button>
-    </div>
-    <div class="chart-container" id="ontologyGraph" style="height: 700px;"></div>
-  </div>
+<section id="s1-3">
+<h3>1.3 调度：CFS 完全公平调度</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P7：CFS 的理想——每个进程"完美均分"CPU</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+传统调度用"时间片轮转"，但固定时间片对交互体验不友好。CFS 思路：<br>
+• 维护一棵按 <b>vruntime（虚拟运行时间）</b>排序的红黑树<br>
+• 每次选择 vruntime 最小的进程运行（即"最受亏待的那个"）<br>
+• nice 值决定"权重"：权重越高，真实时间推进 vruntime 越慢——占 CPU 越久<br>
+• 调度周期 target_latency（默认 6ms 起步）内所有可运行进程至少轮一次
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C7：调度实体 sched_entity <span class="badge badge-path">include/linux/sched.h:512</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">sched_entity</span> {
+    <span class="code-keyword">struct</span> <span class="code-type">rb_node</span>    run_node;       <span class="code-comment">// 红黑树节点（挂入 cfs_rq）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span>  group_node;
+    <span class="code-type">u64</span>               vruntime;       <span class="code-comment">// ⭐ 虚拟运行时间：CFS 选谁就看这个</span>
+    <span class="code-type">u64</span>               exec_start;     <span class="code-comment">// 本次开始运行时刻</span>
+    <span class="code-type">u64</span>               sum_exec_runtime;<span class="code-comment">// 累计真实运行时间</span>
+    <span class="code-type">u64</span>               prev_sum_exec_runtime;
+    <span class="code-type">u64</span>               vruntime_relative;
+    <span class="code-keyword">struct</span> <span class="code-type">sched_avg</span>  avg;            <span class="code-comment">// PELT 负载统计</span>
+};</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P8：调度类的多态——调度器也能"插拔"</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+stop → dl（Deadline）→ rt（Real Time）→ cfs（Fair）→ idle，这是调度优先级链。每个类用 <code>sched_class</code> 函数指针表实现自己的 enqueue/dequeue/pick_next_task，主调度器按优先级依次调用——又是 P0 的多态模式。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C8：调度类多态表 <span class="badge badge-path">include/linux/sched.h:802</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">sched_class</span> {
+    <span class="code-keyword">const struct</span> <span class="code-type">sched_class</span> *next; <span class="code-comment">// 指向下一个优先级更低的调度类</span>
+
+    <span class="code-keyword">void</span> (*<span class="code-func">enqueue_task</span>) (<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> flags);
+    <span class="code-keyword">void</span> (*<span class="code-func">dequeue_task</span>) (<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> flags);
+    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *(*<span class="code-func">pick_next_task</span>) (<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq);
+    <span class="code-keyword">void</span> (*<span class="code-func">task_tick</span>)     (<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *p, <span class="code-type">int</span> queued);
+
+    <span class="code-comment">// CFS 实例：fair_sched_class（kernel/sched/fair.c）</span>
+    <span class="code-comment">// RT 实例：rt_sched_class（kernel/sched/rt.c）</span>
+    <span class="code-comment">// DL 实例：dl_sched_class（kernel/sched/deadline.c）</span>
+};
+
+<span class="code-comment">// 主调度器按优先级链遍历：</span>
+<span class="code-keyword">for</span> (class = sched_class_highest; class; class = class->next) {
+    p = class->pick_next_task(rq);
+    <span class="code-keyword">if</span> (p) <span class="code-keyword">return</span> p;  <span class="code-comment">// 高优先级类有进程就用它</span>
+}</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P9：上下文切换 = 换 mm + 换寄存器</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+"切换进程"本质就是两件事：① 切换页表（switch_mm，从而切换虚拟地址空间）；② 切换内核栈与寄存器（switch_to 汇编）。进程切换的代价主要来自切换页表导致 TLB 刷掉。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C9：context_switch <span class="badge badge-path">kernel/sched/core.c:3569</span></div>
+<pre class="code-block"><span class="code-keyword">static __always_inline struct</span> <span class="code-type">rq</span> *
+<span class="code-func">context_switch</span>(<span class="code-keyword">struct</span> <span class="code-type">rq</span> *rq, <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *prev,
+             <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *next)
+{
+    <span class="code-type">mm_switch</span>(mm, prev->active_mm, next->mm);
+    <span class="code-comment">// 1. 切换地址空间</span>
+    <span class="code-keyword">if</span> (!next->mm) {     <span class="code-comment">// 内核线程：不换，借用prev的 mm</span>
+        next->active_mm = prev->active_mm;
+    } <span class="code-keyword">else</span> {             <span class="code-comment">// 用户进程：真正切换页表</span>
+        <span class="code-func">switch_mm_irqs_off</span>(prev->active_mm, next->mm, next);
+    }
+
+    <span class="code-comment">// 2. 切换寄存器上下文与栈（最后一步，不会返回）</span>
+    <span class="code-func">switch_to</span>(prev, next, prev);
+    <span class="code-keyword">return</span> finish_task_switch(prev);
+}</pre>
+</div>
+</div>
 </section>
+
+<section id="s1-4">
+<h3>1.4 进程状态切换</h3>
+<div class="svg-wrap" style="margin:1rem 0;">
+<svg viewBox="0 0 900 300" style="width:100%;max-width:900px;">
+<style>.sbox{fill:#FFF9EC;stroke:#1A1310;stroke-width:1.5;rx:8}.slab{font-family:'Noto Serif SC';font-size:13px;fill:#1A1310;text-anchor:middle}.sarrow{stroke:#C23A2B;stroke-width:1.5;fill:none;marker-end:url(#arr)}.scall{font-family:'JetBrains Mono';font-size:11px;fill:#2B5F4C}</style>
+<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#C23A2B"/></marker></defs>
+<rect x="360" y="20" width="180" height="50" class="sbox" rx="10"/>
+<text x="450" y="42" class="slab" font-weight="700" font-size="15">TASK_RUNNING</text>
+<text x="450" y="60" class="slab" fill="#6B5B43" font-size="11">(就绪/正在运行)</text>
+
+<rect x="30" y="150" width="180" height="50" class="sbox"/>
+<text x="120" y="172" class="slab" font-weight="700">TASK_INTERRUPTIBLE</text>
+<text x="120" y="190" class="slab" fill="#6B5B43" font-size="11">(睡眠，可被信号唤醒)</text>
+
+<rect x="250" y="150" width="180" height="50" class="sbox"/>
+<text x="340" y="172" class="slab" font-weight="700">TASK_UNINTERRUPTIBLE</text>
+<text x="340" y="190" class="slab" fill="#6B5B43" font-size="11">(睡眠，信号也叫不醒)</text>
+
+<rect x="470" y="150" width="180" height="50" class="sbox"/>
+<text x="560" y="172" class="slab" font-weight="700">__TASK_STOPPED</text>
+<text x="560" y="190" class="slab" fill="#6B5B43" font-size="11">(SIGSTOP 暂停)</text>
+
+<rect x="690" y="150" width="180" height="50" class="sbox"/>
+<text x="780" y="172" class="slab" font-weight="700">EXIT_ZOMBIE</text>
+<text x="780" y="190" class="slab" fill="#6B5B43" font-size="11">(exit但父未wait)</text>
+
+<rect x="360" y="260" width="180" height="35" class="sbox" rx="10"/>
+<text x="450" y="282" class="slab" font-weight="700">EXIT_DEAD（最终死亡）</text>
+
+<path d="M 400 70 L 150 150" class="sarrow"/><text x="230" y="105" class="scall">wait_event/sleep</text>
+<path d="M 480 70 L 360 150" class="sarrow"/><text x="385" y="105" class="scall">IO wait</text>
+<path d="M 200 150 L 400 75" class="sarrow"/><text x="250" y="125" class="scall">wake_up</text>
+<path d="M 350 150 L 460 75" class="sarrow"/><text x="365" y="125" class="scall">IO 完成</text>
+<path d="M 540 70 L 560 150" class="sarrow"/><text x="555" y="110" class="scall">SIGSTOP</text>
+<path d="M 570 150 L 530 75" class="sarrow"/><text x="530" y="125" class="scall">SIGCONT</text>
+<path d="M 540 70 Q 650 110 730 150" class="sarrow"/><text x="670" y="100" class="scall">do_exit()</text>
+<path d="M 780 200 L 500 265" class="sarrow"/><text x="640" y="245" class="scall">release_task()/wait</text>
+</svg>
+</div>
+<p style="font-size:13.5px;color:#6B5B43;">状态值就是 task_struct.state 字段的取值，定义在 include/linux/sched.h:78，状态切换由 set_current_state() + schedule() 完成。</p>
+</section>
+
+<section id="s2">
+<h2>第二章 · 内存管理</h2>
+<div class="principle-box" style="margin-bottom:1.5rem;">
+<strong>本体论核心：</strong>内存管理是"地址→物理页帧"的映射游戏。进程看到的是平坦的虚拟地址空间，内核通过页表将其拆分、映射、保护、按需分配。核心对象是 <code>mm_struct</code>（进程视角）和 <code>page</code>（物理页帧视角）。
+</div>
+</section>
+
+<section id="s2-1">
+<h3>2.1 mm_struct：进程的地址空间本体</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P10：进程 = 一段"虚拟地址空间"</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+每个进程"独占"0~2<sup>48</sup>-1（x86_64 用户态）的虚拟地址，这是 <code>mm_struct</code> 描述的：<br>
+• pgd：页全局目录基址（写入 CR3 寄存器）<br>
+• mmap：VMA 链表头，描述已分配的各个区间<br>
+• mm_rb：同一组 VMA 的红黑树（加速查找）<br>
+• 起始/结束地址：mmap_base、start_brk（堆）、start_stack（栈）
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C10：mm_struct 结构 <span class="badge badge-path">include/linux/mm_types.h:482</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">mm_struct</span> {
+    <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *mmap;       <span class="code-comment">// VMA 链表头（线性，用于遍历）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">rb_root</span>       mm_rb;       <span class="code-comment">// VMA 红黑树根（O(log n)查找）</span>
+    <span class="code-type">u64</span>                   vmacache_seqnum;
+    <span class="code-type">unsigned long</span>        mmap_base;    <span class="code-comment">// mmap 区域基址</span>
+    <span class="code-type">unsigned long</span>        total_vm;     <span class="code-comment">// 总页面数</span>
+    <span class="code-type">unsigned long</span>        locked_vm;
+    <span class="code-type">unsigned long</span>        start_code, end_code, start_data, end_data;
+    <span class="code-type">unsigned long</span>        start_brk, brk, start_stack;  <span class="code-comment">// 堆/栈边界</span>
+    <span class="code-type">unsigned long</span>        arg_start, arg_end, env_start, env_end;
+    <span class="code-type">pgd_t</span>               *pgd;         <span class="code-comment">// ⭐ 页全局目录（CR3 就是它）</span>
+    <span class="code-type">atomic_t</span>             mm_users;     <span class="code-comment">// 使用计数（线程共享+1）</span>
+    <span class="code-type">atomic_t</span>             mm_count;     <span class="code-comment">// 真正的引用计数</span>
+    <span class="code-keyword">struct</span> <span class="code-type">core_state</span>   *core_state;
+    <span class="code-comment">// ...</span>
+};</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P11：VMA——连续虚拟区间的抽象</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+虚拟地址不是一整块分配，而是按 VMA（Virtual Memory Area，虚存区）一段段切分：代码段、数据段、堆、栈、每个 mmap 的文件/匿名区各是一个 VMA。每个 VMA 记录权限（rwx）和关联的文件/匿名。<br>
+malloc 本质上只在堆顶 brk 或 mmap 新建 VMA，<b>并不真的分配物理页</b>——物理页在第一次读/写这个地址时由缺页异常"按需分配"。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C11：vm_area_struct 结构 <span class="badge badge-path">include/linux/mm_types.h:351</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> {
+    <span class="code-type">unsigned long</span>  vm_start;        <span class="code-comment">// 区间起始</span>
+    <span class="code-type">unsigned long</span>  vm_end;          <span class="code-comment">// 区间结束（[start,end) 左闭右开）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *vm_next, *vm_prev;  <span class="code-comment">// 链表节点</span>
+    <span class="code-keyword">struct</span> <span class="code-type">rb_node</span>    vm_rb;         <span class="code-comment">// 红黑树节点</span>
+    <span class="code-type">pgprot_t</span>         vm_page_prot; <span class="code-comment">// 访问权限</span>
+    <span class="code-type">unsigned long</span>    vm_flags;    <span class="code-comment">// VM_READ/VM_WRITE/VM_EXEC/VM_SHARED...</span>
+    <span class="code-keyword">struct</span> <span class="code-type">anon_vma</span> *anon_vma;    <span class="code-comment">// 匿名页反向映射</span>
+    <span class="code-keyword">struct</span> <span class="code-type">file</span>     *vm_file;     <span class="code-comment">// 映射到的文件（匿名映射为NULL）</span>
+    <span class="code-type">unsigned long</span>    vm_pgoff;    <span class="code-comment">// 文件内偏移（页单位）</span>
+    <span class="code-keyword">const struct</span> <span class="code-type">vm_operations_struct</span> *vm_ops; <span class="code-comment">// VMA操作（又一个多态表）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">mm_struct</span>  *vm_mm;     <span class="code-comment">// 所属 mm</span>
+};</pre>
+</div>
+</div>
+
+<h4>虚拟地址空间布局图（x86_64，48位）</h4>
+<div class="svg-wrap">
+<svg viewBox="0 0 800 460" style="width:100%;max-width:800px;">
+<style>.memr{stroke:#1A1310;stroke-width:1.5}.memt{font-family:'JetBrains Mono';font-size:11px;fill:#1A1310}.mlab{font-family:'Noto Serif SC';font-size:12px;fill:#1A1310}</style>
+<line x1="120" y1="20" x2="120" y2="440" stroke="#1A1310" stroke-width="2"/>
+<line x1="240" y1="20" x2="240" y2="440" stroke="#1A1310" stroke-width="1.5" stroke-dasharray="3,3"/>
+<text x="40" y="30" class="memt">0xFFFF...F</text>
+<rect x="121" y="22" width="118" height="40" fill="#F8D3CE" class="memr"/>
+<text x="180" y="46" class="mlab" text-anchor="middle">内核空间</text>
+<text x="260" y="46" class="mlab" fill="#6B5B43">（所有进程共享）</text>
+
+<text x="40" y="90" class="memt">0x8000...0</text>
+<rect x="121" y="80" width="118" height="40" fill="#DCEEE6" class="memr"/>
+<text x="180" y="105" class="mlab" text-anchor="middle">栈 (stack)</text>
+<text x="260" y="105" class="mlab" fill="#6B5B43">向下增长 ↓</text>
+
+<rect x="121" y="130" width="118" height="60" fill="#E0E8F3" class="memr"/>
+<text x="180" y="155" class="mlab" text-anchor="middle">mmap 区域</text>
+<text x="180" y="175" class="mlab" text-anchor="middle" font-size="11">（共享库/匿名映射）</text>
+<text x="260" y="160" class="mlab" fill="#6B5B43">向下增长 ↓</text>
+
+<rect x="121" y="200" width="118" height="50" fill="#FBEDD6" class="memr"/>
+<text x="180" y="225" class="mlab" text-anchor="middle">堆 (heap)</text>
+<text x="180" y="243" class="mlab" text-anchor="middle" font-size="11">brk 指针</text>
+<text x="260" y="225" class="mlab" fill="#6B5B43">向上增长 ↑</text>
+
+<rect x="121" y="260" width="118" height="30" fill="#F8EFD6" class="memr"/>
+<text x="180" y="280" class="mlab" text-anchor="middle">BSS 段</text>
+
+<rect x="121" y="295" width="118" height="30" fill="#F8EFD6" class="memr"/>
+<text x="180" y="315" class="mlab" text-anchor="middle">数据段 (data)</text>
+
+<rect x="121" y="330" width="118" height="40" fill="#FCE7E4" class="memr"/>
+<text x="180" y="355" class="mlab" text-anchor="middle">代码段 (text)</text>
+
+<rect x="121" y="380" width="118" height="55" fill="#EEE9DB" class="memr"/>
+<text x="180" y="412" class="mlab" text-anchor="middle">0x0000...0</text>
+
+<text x="60" y="380" class="memt">0x400000</text>
+<text x="60" y="440" class="memt">0x0</text>
+
+<line x1="350" y1="60" x2="350" y2="440" stroke="#C23A2B" stroke-width="2"/>
+<rect x="351" y="62" width="150" height="35" fill="#FFF9EC" stroke="#C23A2B"/>
+<text x="426" y="85" class="mlab" text-anchor="middle">mm_struct.pgd</text>
+<text x="510" y="85" class="mlab" fill="#6B5B43">→ CR3 寄存器</text>
+
+<rect x="351" y="110" width="150" height="35" fill="#FFF9EC" stroke="#2B5F4C"/>
+<text x="426" y="133" class="mlab" text-anchor="middle">mm_struct.mmap</text>
+<text x="510" y="133" class="mlab" fill="#6B5B43">→ VMA 链表</text>
+
+<rect x="351" y="158" width="150" height="35" fill="#FFF9EC" stroke="#2B5F4C"/>
+<text x="426" y="181" class="mlab" text-anchor="middle">mm_struct.mm_rb</text>
+<text x="510" y="181" class="mlab" fill="#6B5B43">→ VMA 红黑树</text>
+
+<text x="351" y="230" class="mlab" fill="#1A1310" font-weight="700">每个 VMA 里记录：</text>
+<text x="351" y="252" class="mlab">• vm_start / vm_end（区间）</text>
+<text x="351" y="270" class="mlab">• vm_flags（rwx/共享）</text>
+<text x="351" y="288" class="mlab">• vm_file（映射的文件 or NULL）</text>
+<text x="351" y="306" class="mlab">• anon_vma（匿名页反向映射）</text>
+</svg>
+</div>
+</section>
+</section>
+
+<section id="s2-2">
+<h3>2.2 缺页异常（Page Fault）：按需分配的实现</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P12：不访问就不分配 —— 虚拟内存的灵魂</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+用户 malloc(1G) 后，内核只是创建了一个 VMA，<b>没有分配任何物理页</b>。等进程第一次读/写这个地址，MMU 查页表发现页表项为空，抛出 #PF（Page Fault）异常，陷入内核，内核才真正 alloc_page 并填页表。<br>
+缺页处理分三种：<br>
+① 匿名缺页 → 分配新物理页、清零、建立映射<br>
+② 文件缺页 → 从磁盘读文件到 page cache 再映射<br>
+③ 写时复制（COW 已在 C6 中讨论）→ 复制写
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C12：x86 缺页异常入口 <span class="badge badge-path">arch/x86/mm/fault.c:1254 do_page_fault</span></div>
+<pre class="code-block"><span class="code-comment">// CPU 自动压入错误码 error_code
+// error_code 低 3 位：
+//   bit0: 0=页不存在 1=权限违例
+//   bit1: 0=读 1=写
+//   bit2: 0=内核态 1=用户态</span>
+<span class="code-type">dotraplinkage void</span> <span class="code-func">do_page_fault</span>(<span class="code-keyword">struct</span> <span class="code-type">pt_regs</span> *regs, <span class="code-type">unsigned long</span> error_code)
+{
+    <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *vma;
+    <span class="code-type">unsigned long</span> address = read_cr2(); <span class="code-comment">// CR2=触发缺页的虚拟地址</span>
+    <span class="code-keyword">struct</span> <span class="code-type">task_struct</span> *tsk = current;
+    <span class="code-keyword">struct</span> <span class="code-type">mm_struct</span> *mm = tsk->mm;
+
+    vma = <span class="code-func">find_vma</span>(mm, address);       <span class="code-comment">// 在 mm_rb 红黑树中找 VMA</span>
+    <span class="code-keyword">if</span> (!vma || address < vma->vm_start)
+        <span class="code-keyword">goto</span> bad_area;                   <span class="code-comment">// 野指针 → SIGSEGV</span>
+
+    <span class="code-keyword">if</span> (!(vma->vm_flags & (error_code & PF_WRITE ? VM_WRITE :
+                            (error_code & PF_INSTR ? VM_EXEC : VM_READ))))
+        <span class="code-keyword">goto</span> bad_area;                   <span class="code-comment">// 权限违例 → SIGSEGV</span>
+
+    <span class="code-func">handle_mm_fault</span>(vma, address, flags); <span class="code-comment">// 真正处理</span>
+}</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P13：find_vma 的红黑树查找</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">给定虚拟地址 addr，找第一个 vm_end > addr 的 VMA；若 vma->vm_start ≤ addr 则命中，否则没分配。这是所有内存操作（读/写/mmap/munmap）的基础查询，所以用红黑树而非链表，O(log n)。</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C13：find_vma 主循环 <span class="badge badge-path">mm/mmap.c:2337</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *<span class="code-func">find_vma</span>(<span class="code-keyword">struct</span> <span class="code-type">mm_struct</span> *mm, <span class="code-type">unsigned long</span> addr)
+{
+    <span class="code-keyword">struct</span> <span class="code-type">rb_node</span> *rb_node;
+    <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span> *vma = NULL;
+
+    rb_node = mm->mm_rb.rb_node;
+    <span class="code-keyword">while</span> (rb_node) {
+        vma = rb_entry(rb_node, <span class="code-keyword">struct</span> <span class="code-type">vm_area_struct</span>, vm_rb);
+        <span class="code-keyword">if</span> (vma->vm_end > addr) {       <span class="code-comment">// 候选：结束>addr</span>
+            <span class="code-keyword">if</span> (vma->vm_start <= addr)    <span class="code-comment">// 起始<=addr → 命中！</span>
+                <span class="code-keyword">break</span>;
+            rb_node = rb_node->rb_left;   <span class="code-comment">// 太大了，往左走</span>
+        } <span class="code-keyword">else</span> {
+            rb_node = rb_node->rb_right;  <span class="code-comment">// 太小了，往右走</span>
+            vma = NULL;
+        }
+    }
+    <span class="code-keyword">return</span> vma;
+}</pre>
+</div>
+</div>
+</section>
+
+<section id="s2-3">
+<h3>2.3 四级页表：地址翻译的本质</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P14：为什么要多级页表？</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+x86_64 用户地址 48 位。若用单级页表，一个进程需 2<sup>48</sup>/2<sup>12</sup> = 2<sup>36</sup> ≈ 680 亿条页表项，根本放不下。<br>
+四级页表把虚拟地址切成 5 段：<br>
+<code>| PGD(9) | PUD(9) | PMD(9) | PTE(9) | offset(12) |</code><br>
+每级 9 位 = 512 项（正好占一页 4KB），缺了上一级就不用建下一级——稀疏映射的完美解决方案。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C14：各级页表项类型 <span class="badge badge-path">arch/x86/include/asm/pgtable.h</span></div>
+<pre class="code-block"><span class="code-keyword">typedef struct</span> { <span class="code-type">unsigned long</span> pgd; } <span class="code-type">pgd_t</span>;  <span class="code-comment">// Page Global Directory</span>
+<span class="code-keyword">typedef struct</span> { <span class="code-type">unsigned long</span> pud; } <span class="code-type">pud_t</span>;  <span class="code-comment">// Page Upper Directory</span>
+<span class="code-keyword">typedef struct</span> { <span class="code-type">unsigned long</span> pmd; } <span class="code-type">pmd_t</span>;  <span class="code-comment">// Page Middle Directory</span>
+<span class="code-keyword">typedef struct</span> { <span class="code-type">unsigned long</span> pte; } <span class="code-type">pte_t</span>;  <span class="code-comment">// Page Table Entry</span>
+
+<span class="code-comment">// 从虚拟地址提取每一级索引的宏</span>
+<span class="code-keyword">#define</span> <span class="code-func">PGDIR_SHIFT</span>  39
+<span class="code-keyword">#define</span> <span class="code-func">PUD_SHIFT</span>    30
+<span class="code-keyword">#define</span> <span class="code-func">PMD_SHIFT</span>    21
+<span class="code-keyword">#define</span> <span class="code-func">PAGE_SHIFT</span>   12
+
+<span class="code-comment">// pgd_index 取最高 9 位</span>
+<span class="code-keyword">#define</span> <span class="code-func">pgd_index</span>(address) \
+    (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
+<span class="code-comment">// 各级之间通过 pgd_offset/pud_offset/pmd_offset 链式解引用</span></pre>
+</div>
+</div>
+
+<h4>四级页表翻译动画（点击按钮播放）</h4>
+<div class="svg-wrap">
+<svg viewBox="0 0 900 380" style="width:100%;max-width:900px;" id="pgwalk-svg">
+<style>.pgb{fill:#FFF9EC;stroke:#1A1310;stroke-width:1.5;rx:6}.pgt{font-family:'JetBrains Mono';font-size:11px;fill:#1A1310}.pglab{font-family:'Noto Serif SC';font-size:13px;fill:#1A1310;font-weight:600}.pgl{stroke:#C23A2B;stroke-width:2;fill:none;marker-end:url(#pgarr)}
+.pgl.active{stroke:#C5922A;stroke-width:3;}</style>
+<defs><marker id="pgarr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#C23A2B"/></marker></defs>
+<rect x="20" y="30" width="160" height="40" class="pgb" id="pg-pgd"/>
+<text x="100" y="55" class="pglab" text-anchor="middle">PGD (CR3→)</text>
+
+<rect x="240" y="30" width="160" height="40" class="pgb" id="pg-pud"/>
+<text x="320" y="55" class="pglab" text-anchor="middle">PUD</text>
+
+<rect x="460" y="30" width="160" height="40" class="pgb" id="pg-pmd"/>
+<text x="540" y="55" class="pglab" text-anchor="middle">PMD</text>
+
+<rect x="680" y="30" width="160" height="40" class="pgb" id="pg-pte"/>
+<text x="760" y="55" class="pglab" text-anchor="middle">PTE</text>
+
+<path d="M 180 50 L 240 50" class="pgl" id="l1"/>
+<path d="M 400 50 L 460 50" class="pgl" id="l2"/>
+<path d="M 620 50 L 680 50" class="pgl" id="l3"/>
+<path d="M 760 70 L 760 150" class="pgl" id="l4"/>
+
+<rect x="680" y="150" width="160" height="80" fill="#DCEEE6" stroke="#2B5F4C" stroke-width="1.5" rx="6" id="pg-phys"/>
+<text x="760" y="180" class="pglab" text-anchor="middle">物理页帧</text>
+<text x="760" y="205" class="pgt" text-anchor="middle">4KB Page Frame</text>
+
+<rect x="240" y="260" width="420" height="45" fill="#F8EFD6" stroke="#C5922A" stroke-width="1.5" rx="6" id="pg-vaddr"/>
+<text x="270" y="280" class="pgt" fill="#8A6A22">虚拟地址：</text>
+<text x="340" y="280" class="pgt" fill="#C23A2B" id="v-pgd">0x080</text>
+<text x="410" y="280" class="pgt">|</text>
+<text x="430" y="280" class="pgt" fill="#C23A2B" id="v-pud">0x055</text>
+<text x="495" y="280" class="pgt">|</text>
+<text x="515" y="280" class="pgt" fill="#C23A2B" id="v-pmd">0x1AA</text>
+<text x="580" y="280" class="pgt">|</text>
+<text x="600" y="280" class="pgt" fill="#C23A2B" id="v-pte">0x032</text>
+<text x="660" y="280" class="pgt">| offset</text>
+
+<text x="340" y="300" class="pgt" fill="#6B5B43" font-size="10">9位</text>
+<text x="430" y="300" class="pgt" fill="#6B5B43" font-size="10">9位</text>
+<text x="515" y="300" class="pgt" fill="#6B5B43" font-size="10">9位</text>
+<text x="600" y="300" class="pgt" fill="#6B5B43" font-size="10">9位</text>
+<text x="660" y="300" class="pgt" fill="#6B5B43" font-size="10">12位</text>
+
+<text x="20" y="350" class="pglab" fill="#2B5F4C" id="pg-msg">点击下方按钮，演示 CPU 用 CR3 逐级查页表得到物理地址</text>
+</svg>
+<div style="margin-top:.75rem;"><button class="play-btn" onclick="playPgWalk()">▶ 播放页表翻译动画</button>
+<span id="pg-code" style="margin-left:1rem;font-family:'JetBrains Mono';font-size:12.5px;color:#6B5B43;"></span></div>
+</div>
+
+<script>
+let pgCodeLines = [
+  "pgd = mm->pgd + pgd_index(addr);  // CR3 指向 pgd 基址",
+  "pud = pgd_offset(... , addr);     // pgd_val(*pgd) 得 pud 物理基址",
+  "pmd = pud_offset(pud, addr);      // pud_val(*pud) 得 pmd 基址",
+  "pte = pmd_offset(pmd, addr);      // pmd_val(*pmd) 得 pte 基址",
+  "pfn = pte_val(*pte) >> PAGE_SHIFT; phys_addr = (pfn<<12) | offset;"
+];
+function playPgWalk(){
+  const ids=["pg-pgd","pg-pud","pg-pmd","pg-pte"];
+  const ls=["l1","l2","l3","l4"];
+  let i=0;
+  ids.forEach(id=>document.getElementById(id).setAttribute("fill","#FFF9EC"));
+  ls.forEach(id=>document.getElementById(id).classList.remove("active"));
+  document.getElementById("pg-phys").setAttribute("fill","#DCEEE6");
+  document.getElementById("pg-code").textContent="";
+  const step=()=>{
+    if(i>0){document.getElementById(ids[i-1]).setAttribute("fill","#FCE7E4");}
+    if(i<4){document.getElementById(ids[i]).setAttribute("fill","#FBEDD6");}
+    if(i<4){document.getElementById(ls[i]).classList.add("active");}
+    if(i<5)document.getElementById("pg-code").textContent=pgCodeLines[i];
+    if(i===4)document.getElementById("pg-phys").setAttribute("fill","#FCE7E4");
+    i++; if(i<=5)setTimeout(step,1000);
+  };
+  step();
+}
+</script>
+
+<h4>页表遍历核心函数（原理 ⇄ 代码 对应）</h4>
+<table>
+<thead><tr><th>步骤</th><th>原理</th><th>宏/函数</th><th>位置</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>从 mm->pgd 取得 PGD 基址（CR3）</td><td>pgd_offset(mm, addr)</td><td>asm/pgtable.h</td></tr>
+<tr><td>2</td><td>用 addr 高 9 位索引 PGD 项</td><td>pgd_index(addr)</td><td>asm/pgtable.h</td></tr>
+<tr><td>3</td><td>取 PUD 物理地址</td><td>pud_offset(pgd, addr)</td><td>asm/pgtable.h</td></tr>
+<tr><td>4</td><td>取 PMD 物理地址</td><td>pmd_offset(pud, addr)</td><td>asm/pgtable.h</td></tr>
+<tr><td>5</td><td>取 PTE 项，读出页帧号 PFN</td><td>pte_offset_map(pmd, addr)</td><td>asm/pgtable.h</td></tr>
+<tr><td>6</td><td>PFN<<12 | offset = 物理地址</td><td>pte_pfn()</td><td>asm/pgtable.h</td></tr>
+<tr><td>7</td><td>若任一项为空/不存在，触发缺页</td><td>handle_mm_fault()</td><td>mm/memory.c</td></tr>
+</tbody></table>
+</section>
+
+<section id="s3">
+<h2>第三章 · 中断与异常</h2>
+<div class="principle-box"><strong>本体论核心：</strong>中断是"外部世界打断 CPU 的本体"。硬件通过 IDT 找到入口，内核分"上半部"（关中断、短小、快速应答）和"下半部"（开中断、耗时、可延后）处理，以兼顾响应速度与处理深度。</div>
+
+<section id="s3-1">
+<h3>3.1 中断描述符表 IDT：中断号→处理函数的映射表</h3>
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P15：中断本质是"编号→函数"的间接调用</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+CPU 用一根 INTR 引脚接收中断，同时通过数据总线接收 8 位向量号（0~255）。CPU 用这个号查 IDT 找到门描述符，得到入口 CS:RIP——跟系统调用、异常完全同构。<br>
+• 0~31：处理器异常（除0、缺页 #PF、断点 #BP 等）<br>
+• 32~127：外部硬件中断（IRQ0=时钟、IRQ1=键盘…）<br>
+• 128（0x80）：传统 int 0x80 系统调用<br>
+• 0~255 其他：可用作 MSI、IPI 等
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C15：IDT 门描述符与注册 <span class="badge badge-path">arch/x86/include/asm/desc.h / arch/x86/kernel/idt.c</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">gate_desc</span> {
+    <span class="code-type">u16</span> offset_low;
+    <span class="code-type">u16</span> segment;        <span class="code-comment">// 目标 CS 段选择子</span>
+    <span class="code-type">u16</span> flags;          <span class="code-comment">// DPL/类型(中断门/陷阱门/系统门)</span>
+    <span class="code-type">u16</span> offset_middle;
+    <span class="code-type">u32</span> offset_high;
+    <span class="code-type">u32</span> reserved;
+} __attribute__((packed));
+
+<span class="code-comment">// 注册中断门（现代用 idt_setup_irq / set_intr_gate）</span>
+<span class="code-keyword">static __init void</span> <span class="code-func">idt_setup_from_table</span>(<span class="code-keyword">struct</span> <span class="code-type">gate_desc</span> *idt,
+    <span class="code-keyword">const struct</span> <span class="code-type">idt_data</span> *table, <span class="code-type">bool</span> sysvec)
+{
+    <span class="code-keyword">for</span> (; table->n; table++)
+        <span class="code-func">idt_init_desc</span>(&idt[table->nr], table);
+}
+
+<span class="code-comment">// 载入 IDT 到 CPU：lidt 指令，写入 IDTR 寄存器</span>
+<span class="code-keyword">static inline void</span> <span class="code-func">load_idt</span>(<span class="code-keyword">const struct</span> <span class="code-type">desc_ptr</span> *dtr) {
+    <span class="code-keyword">asm volatile</span>(<span class="code-string">"lidt %0"</span> : : <span class="code-string">"m"</span> (*dtr));
+}</pre>
+</div>
+</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P16：irq_desc——每个中断线的总控</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">每个 IRQ 对应一个 irq_desc，里面维护动作链（多个设备可共享一条 IRQ），动作是 irqaction（包含 handler 函数指针、设备名、dev_id）。</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C16：irq_desc / irqaction <span class="badge badge-path">include/linux/irqdesc.h:43 / include/linux/interrupt.h:126</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">irq_desc</span> {
+    <span class="code-keyword">struct</span> <span class="code-type">irq_data</span>    irq_data;     <span class="code-comment">// 芯片数据（irq_chip+hwirq）</span>
+    <span class="code-type">irq_flow_handler_t</span>  handle_irq;   <span class="code-comment">// 高层流控（电平/边沿）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">irqaction</span>  *action;       <span class="code-comment">// ⭐ 动作链表（可共享）</span>
+    <span class="code-type">raw_spinlock_t</span>     lock;
+    <span class="code-type">unsigned int</span>       nr;           <span class="code-comment">// 虚拟 IRQ 号</span>
+    <span class="code-type">cpumask_var_t</span>     affinity;
+};
+
+<span class="code-keyword">struct</span> <span class="code-type">irqaction</span> {
+    <span class="code-type">irq_handler_t</span>     handler;      <span class="code-comment">// ⭐ 驱动注册的中断处理函数</span>
+    <span class="code-type">unsigned long</span>     flags;        <span class="code-comment">// IRQF_SHARED/IRQF_ONESHOT/...</span>
+    <span class="code-keyword">const char</span>       *name;         <span class="code-comment">// /proc/interrupts 中可见的名字</span>
+    <span class="code-keyword">void</span>             *dev_id;       <span class="code-comment">// 共享IRQ时的识别cookie</span>
+    <span class="code-keyword">struct</span> <span class="code-type">irqaction</span> *next;         <span class="code-comment">// 共享链指针</span>
+};</pre>
+</div>
+</div>
+</section>
+
+<section id="s3-2">
+<h3>3.2 上半部/下半部：为什么要分两层？</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P17：中断"快响应、慢处理"的分层哲学</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+中断来的时候 CPU 关中断，若处理太久会丢失其他中断，系统卡顿。所以拆成两层：<br>
+• <b>上半部（HardIRQ）</b>：request_irq 注册的 handler，关中断执行，只做"应答+把下半部挂起"等最少工作<br>
+• <b>下半部</b>三种机制，按"延迟要求"由快到慢：<br>
+　① <b>softirq</b>（最快，静态预定义 10 种，如 NET_RX/TIMER）<br>
+　② <b>tasklet</b>（基于 softirq，动态创建，同类型不可并发）<br>
+　③ <b>workqueue</b>（最慢，跑在专用内核进程上，允许睡眠）
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C17：softirq 枚举与触发 <span class="badge badge-path">include/linux/interrupt.h:498 / kernel/softirq.c</span></div>
+<pre class="code-block"><span class="code-comment">// softirq 是静态的：下面这些是全部</span>
+<span class="code-keyword">enum</span> {
+    HI_SOFTIRQ=0, TIMER_SOFTIRQ, NET_TX_SOFTIRQ, NET_RX_SOFTIRQ,
+    BLOCK_SOFTIRQ, IRQ_POLL_SOFTIRQ, TASKLET_SOFTIRQ,
+    SCHED_SOFTIRQ, HRTIMER_SOFTIRQ, RCU_SOFTIRQ,
+    NR_SOFTIRQS   <span class="code-comment">// = 10</span>
+};
+
+<span class="code-keyword">struct</span> <span class="code-type">softirq_action</span> {
+    <span class="code-keyword">void</span> (*<span class="code-func">action</span>)(<span class="code-keyword">struct</span> <span class="code-type">softirq_action</span> *);
+} softirq_vec[NR_SOFTIRQS];
+
+<span class="code-comment">// 上半部结束时调用 raise_softirq(NET_RX_SOFTIRQ) 标记待处理</span>
+<span class="code-keyword">void</span> <span class="code-func">raise_softirq</span>(<span class="code-type">unsigned int</span> nr) {
+    __raise_softirq_irqoff(nr);
+    <span class="code-keyword">if</span> (!in_interrupt()) wakeup_softirqd(); <span class="code-comment">// 必要时唤醒 ksoftirqd 线程</span>
+}
+
+<span class="code-comment">// 注册：网络栈启动时 open_softirq(NET_RX_SOFTIRQ, net_rx_action)</span></pre>
+</div>
+</div>
+
+<h4>中断三级流水线动画</h4>
+<div class="svg-wrap">
+<svg viewBox="0 0 850 200" style="width:100%;max-width:850px;" id="irq-svg">
+<style>.irb{fill:#FFF9EC;stroke:#1A1310;stroke-width:1.5;rx:10}.irlab{font-family:'Noto Serif SC';font-size:13px;fill:#1A1310;font-weight:700;text-anchor:middle}.irsub{font-family:'JetBrains Mono';font-size:11px;fill:#6B5B43;text-anchor:middle}.irline{stroke:#C23A2B;stroke-width:2;fill:none;stroke-dasharray:5,3}</style>
+<rect x="20" y="60" width="200" height="70" class="irb" id="ir-hw"/>
+<text x="120" y="90" class="irlab">① 硬件中断</text>
+<text x="120" y="112" class="irsub">request_irq() 注册的 handler</text>
+<text x="120" y="126" class="irsub" fill="#C23A2B">关中断 · 极快 · 禁止睡眠</text>
+
+<rect x="290" y="60" width="200" height="70" class="irb" id="ir-soft"/>
+<text x="390" y="90" class="irlab">② 软中断/tasklet</text>
+<text x="390" y="112" class="irsub">softirq_vec[NR_SOFTIRQS]</text>
+<text x="390" y="126" class="irsub" fill="#C23A2B">开中断 · 原子上下文 · 不可睡</text>
+
+<rect x="560" y="60" width="200" height="70" class="irb" id="ir-wq"/>
+<text x="660" y="90" class="irlab">③ 工作队列 workqueue</text>
+<text x="660" y="112" class="irsub">kworker/* 内核线程</text>
+<text x="660" y="126" class="irsub" fill="#2B5F4C">开中断 · 进程上下文 · 可睡眠</text>
+
+<path d="M 220 95 L 290 95" class="irline" id="ir-l1"/>
+<path d="M 490 95 L 560 95" class="irline" id="ir-l2"/>
+<text x="100" y="175" class="irsub" fill="#8A6A22" id="ir-msg">点击按钮模拟一次网卡收包中断流程</text>
+</svg>
+<div style="margin-top:.5rem;"><button class="play-btn" onclick="playIrq()">▶ 播放中断三级流水线</button></div>
+</div>
+
+<script>
+function playIrq(){
+  ['ir-hw','ir-soft','ir-wq'].forEach(id=>document.getElementById(id).setAttribute('fill','#FFF9EC'));
+  const steps=[['ir-hw','① 网卡触发IRQ → do_IRQ → 驱动handler：应答硬件+把包挂入queue → raise_softirq(NET_RX_SOFTIRQ)'],
+  ['ir-soft','② 开中断后进入 net_rx_action()：批量poll包 → 送到网络栈 → 如果包太多，唤醒workqueue'],
+  ['ir-wq','③ kworker 执行：协议解析、tcp_v4_rcv、放入socket接收队列、唤醒用户进程recvfrom']];
+  let i=0;
+  const s=()=>{
+    if(i>0)document.getElementById(steps[i-1][0]).setAttribute('fill','#FCE7E4');
+    document.getElementById(steps[i][0]).setAttribute('fill','#FBEDD6');
+    document.getElementById('ir-msg').textContent=steps[i][1];
+    i++; if(i<3)setTimeout(s,1500); else setTimeout(()=>document.getElementById(steps[2][0]).setAttribute('fill','#DCEEE6'),1500);
+  }; s();
+}
+</script>
+</section>
+</section>
+
+<section id="s4">
+<h2>第四章 · 同步机制</h2>
+<div class="principle-box"><strong>本体论核心：</strong>同步的本质是"当竞争出现时，要么禁止竞争（锁），要么容忍竞争（原子/RCU）"。内核按临界区长短、是否可睡眠、是否读多写少，提供不同粒度的工具。</div>
+
+<table>
+<thead><tr><th>机制</th><th>原理（为什么有它）</th><th>关键结构体</th><th>源码路径</th><th>典型函数</th></tr></thead>
+<tbody>
+<tr><td><b>percpu</b></td><td>每个CPU一份副本，无需任何锁（最快）</td><td>DEFINE_PER_CPU</td><td>include/linux/percpu-defs.h</td><td>this_cpu_read/this_cpu_write</td></tr>
+<tr><td><b>原子变量 atomic_t</b></td><td>单条指令完成读-改-写，总线锁/LL-SC</td><td>typedef struct { int counter; } atomic_t</td><td>arch/x86/include/asm/atomic.h</td><td>atomic_inc/atomic_dec/atomic_add</td></tr>
+<tr><td><b>spinlock</b></td><td>短临界区，一直旋转等待，<b>不可睡眠</b>（持有锁期间不能sleep/调度）</td><td>struct spinlock_t { arch_spinlock_t raw_lock; }</td><td>include/linux/spinlock.h</td><td>spin_lock()/spin_unlock()</td></tr>
+<tr><td><b>mutex</b></td><td>长临界区，抢不到就睡眠让出CPU，<b>必须在进程上下文</b></td><td>struct mutex { atomic_t count; spinlock_t wait_lock; struct list_head wait_list; }</td><td>include/linux/mutex.h</td><td>mutex_lock()/mutex_unlock()</td></tr>
+<tr><td><b>semaphore</b></td><td>计数信号量，允许多个持有者（如 reader 侧）</td><td>struct semaphore { raw_spinlock_t lock; unsigned int count; struct list_head wait_list; }</td><td>include/linux/semaphore.h</td><td>down()/up()</td></tr>
+<tr><td><b>rw_semaphore</b></td><td>读写信号量：读并发写独占</td><td>struct rw_semaphore</td><td>include/linux/rwsem.h</td><td>down_read/up_read/down_write/up_write</td></tr>
+<tr><td><b>RCU</b></td><td>读不加锁写不阻塞读，写时拷贝替换，宽限期结束后回收旧版本——读多写少场景极致性能</td><td>struct rcu_head { struct rcu_head *next; void (*func)(struct rcu_head *); }</td><td>include/linux/rcupdate.h</td><td>rcu_read_lock()/synchronize_rcu()/call_rcu()</td></tr>
+<tr><td><b>rwlock</b></td><td>读写自旋锁（读共享写独占，不可睡）</td><td>struct rwlock_t</td><td>include/linux/rwlock.h</td><td>read_lock/write_lock</td></tr>
+<tr><td><b>seqlock</b></td><td>写优先的顺序锁：读前/读后检查序号，不一致就重试</td><td>typedef struct { seqcount_t seqcount; spinlock_t lock; } seqlock_t</td><td>include/linux/seqlock.h</td><td>read_seqbegin/read_seqretry/write_seqlock</td></tr>
+<tr><td><b>completion</b></td><td>"等待某事完成"的等待-唤醒模式，比信号量更清晰</td><td>struct completion { unsigned int done; wait_queue_head_t wait; }</td><td>include/linux/completion.h</td><td>wait_for_completion/complete</td></tr>
+<tr><td><b>wait_queue</b></td><td>睡眠等待某个条件（如等待数据到来）</td><td>wait_queue_head_t</td><td>include/linux/wait.h</td><td>wait_event/wake_up</td></tr>
+</tbody></table>
+
+<div class="pair" style="margin-top:1.2rem;">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P18：spinlock 为什么不能睡眠？</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">spin_lock 后关闭/保持抢占，若持锁时你 sleep 触发 schedule，下一个进程在同一CPU也想抢这把锁，就会永远旋转——死锁。所以 spinlock 临界区内绝对禁止睡眠、禁止复制用户页（可能触发缺页→IO→睡眠）。</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C18：mutex 核心结构 <span class="badge badge-path">include/linux/mutex.h:70</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">mutex</span> {
+    <span class="code-type">atomic_t</span>         count;   <span class="code-comment">// 1=没人持有; 0=已持有; 负数=有等待者</span>
+    <span class="code-type">spinlock_t</span>       wait_lock; <span class="code-comment">// 保护等待队列</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span> wait_list; <span class="code-comment">// 睡眠等待的 task 列表</span>
+};
+
+<span class="code-comment">// mutex_lock 主逻辑：</span>
+<span class="code-keyword">void</span> <span class="code-func">__sched</span> <span class="code-func">mutex_lock</span>(<span class="code-keyword">struct</span> <span class="code-type">mutex</span> *lock) {
+    <span class="code-comment">// 快路径：atomic_dec_return 若==0，直接拿到锁</span>
+    <span class="code-keyword">if</span> (__mutex_trylock_fast(lock)) <span class="code-keyword">return</span>;
+    <span class="code-comment">// 慢路径：加入等待队列，进入 TASK_UNINTERRUPTIBLE，schedule() 睡眠</span>
+    __mutex_lock_slowpath(lock);
+}
+<span class="code-comment">// 快路径的核心就是一条 cmpxchg 原子指令</span></pre>
+</div>
+</div>
+</section>
+
+<section id="s5">
+<h2>第五章 · 文件系统</h2>
+<div class="principle-box"><strong>本体论核心：</strong>"一切皆文件"是 Unix/Linux 的本体论宣言。VFS（虚拟文件系统）是"文件"这一抽象的多态基类：上层用户态看到的是统一的 read/write/open/close，下层具体文件系统（ext4、xfs、proc、tmpfs、fuse...）各自实现 file_operations。</div>
+</section>
+
+<section id="s5-1">
+<h3>5.1 VFS 四大核心对象</h3>
+<table>
+<thead><tr><th>对象</th><th>本体论意义</th><th>结构体</th><th>关键字段/函数表</th></tr></thead>
+<tbody>
+<tr><td><b>super_block</b></td><td>一"个"已挂载文件系统的整体</td><td>struct super_block</td><td>s_op (super_operations)、s_root、s_type</td></tr>
+<tr><td><b>inode</b></td><td>磁盘上"一个文件"的唯一身份（含权限、大小、块位置）</td><td>struct inode</td><td>i_ino、i_mode、i_op (inode_operations)、i_fop (file_operations)、i_mapping</td></tr>
+<tr><td><b>dentry</b></td><td>目录项缓存：路径中的一个组件（/usr/bin/ls 有3个dentry），加速路径查找</td><td>struct dentry</td><td>d_name、d_parent、d_inode、d_op (dentry_operations)、d_child</td></tr>
+<tr><td><b>file</b></td><td>"进程打开的一个文件实例"：包含当前文件位置、打开模式、f_op</td><td>struct file</td><td>f_pos、f_mode、f_flags、f_op、f_path、private_data</td></tr>
+</tbody></table>
+
+<div class="pair" style="margin-top:1rem;">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P19：inode 与 dentry 的区别</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+这是初学者最易混淆的点：<br>
+• <b>inode</b> 是文件的"客观存在"——不管你叫它什么名字、硬链接几份，它只有一个。记录元数据与数据块位置。<br>
+• <b>dentry</b> 是"路径名字"到 inode 的<b>缓存映射</b>。硬链接本质是多个 dentry 指向同一个 inode；软链接是特殊 inode，内容是路径字符串。<br>
+dentry 是纯内存结构，从不上磁盘。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C19：inode 结构（精简）<span class="badge badge-path">include/linux/fs.h:600</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">inode</span> {
+    <span class="code-type">umode_t</span>            i_mode;    <span class="code-comment">// 文件类型+权限位(S_ISREG/DIR/LNK...)</span>
+    <span class="code-type">kuid_t</span>             i_uid;
+    <span class="code-type">kgid_t</span>             i_gid;
+    <span class="code-keyword">const struct</span> <span class="code-type">inode_operations</span> *i_op;  <span class="code-comment">// inode 操作（lookup/create/unlink...）</span>
+    <span class="code-keyword">struct</span> <span class="code-type">super_block</span>  *i_sb;
+    <span class="code-keyword">struct</span> <span class="code-type">address_space</span> *i_mapping; <span class="code-comment">// 页缓存映射</span>
+    <span class="code-type">unsigned long</span>      i_ino;     <span class="code-comment">// inode号（同一sb下唯一）</span>
+    <span class="code-type">loff_t</span>             i_size;    <span class="code-comment">// 文件大小</span>
+    <span class="code-keyword">struct</span> <span class="code-type">timespec64</span>  i_atime, i_mtime, i_ctime;
+    <span class="code-type">unsigned int</span>       i_nlink;    <span class="code-comment">// 硬链接计数</span>
+    <span class="code-keyword">const struct</span> <span class="code-type">file_operations</span> *i_fop; <span class="code-comment">// 默认文件操作</span>
+    <span class="code-type">void</span>              *i_private;
+};</pre>
+</div>
+</div>
+</section>
+
+<section id="s5-2">
+<h3>5.2 open() 系统调用完整链路：从用户态到磁盘驱动</h3>
+
+<div class="step-card"><span class="step-num">1</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>用户态</b>调用 <code>open("/home/ye/abc.txt", O_RDWR)</code>，glibc 把系统调用号 SYS_openat 放入 rax，调用 syscall 指令陷入内核。</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-type">fd</span> = <span class="code-func">open</span>(<span class="code-string">"/home/ye/abc.txt"</span>, O_RDWR);
+<span class="code-comment">// glibc 内部封装为 syscall(SYS_openat, AT_FDCWD, filename, flags, mode)</span></pre></div>
+</div></div>
+
+<div class="step-card"><span class="step-num">2</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>入口</b>：SYSCALL_DEFINE4(openat) 接收参数，调用 do_sys_openat2。</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-comment">// fs/open.c:1339</span>
+<span class="code-type">SYSCALL_DEFINE4</span>(openat, <span class="code-type">int</span>, dfd, <span class="code-keyword">const char</span> __user *, filename,
+                <span class="code-type">int</span>, flags, <span class="code-type">umode_t</span>, mode) {
+    <span class="code-keyword">return</span> do_sys_openat2(dfd, filename, &amp;how);
+}</pre></div>
+</div></div>
+
+<div class="step-card"><span class="step-num">3</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>路径解析 path_openat</b>：从根目录/当前目录开始，逐段（home→ye→abc.txt）遍历dentry缓存；若缓存未命中则调用具体文件系统的 inode->i_op->lookup() 查磁盘。</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-comment">// fs/namei.c</span>
+<span class="code-keyword">static struct</span> <span class="code-type">file</span> *<span class="code-func">path_openat</span>(...) {
+    <span class="code-type">struct</span> <span class="code-type">nameidata</span> nd;
+    <span class="code-func">path_init</span>(&amp;nd, dfd, flags);     <span class="code-comment">// 起点目录</span>
+    <span class="code-keyword">while</span> (!(error = <span class="code-func">link_path_walk</span>(pathname, &amp;nd)));  <span class="code-comment">// 逐段走路径</span>
+    <span class="code-keyword">return</span> do_open(&amp;nd, file, op);  <span class="code-comment">// 最后一段：真正创建file</span>
+}</pre></div>
+</div></div>
+
+<div class="step-card"><span class="step-num">4</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>分配 file 结构</b>：alloc_empty_file()，从 filp cache 拿一个 file；把 inode->i_fop 拷贝给 file->f_op，这就是多态绑定。</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-keyword">static int</span> <span class="code-func">do_dentry_open</span>(<span class="keyword">struct</span> <span class="code-type">file</span> *f, ...) {
+    f->f_op = fops_get(inode->i_fop);  <span class="code-comment">// ⭐ 多态：绑定具体文件系统的操作表</span>
+    <span class="code-keyword">if</span> (f->f_op->open) {
+        error = f->f_op->open(inode, f); <span class="code-comment">// 调用具体FS的open（如ext4_file_open）</span>
+    }
+}</pre></div>
+</div></div>
+
+<div class="step-card"><span class="step-num">5</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>安装文件描述符</b>：从进程 files_struct 中找到最小可用的 fd，把 file* 填到 fdtable[fd]。返回 fd 给用户态。</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-type">int</span> <span class="code-func">fd_install</span>(<span class="code-type">unsigned int</span> fd, <span class="keyword">struct</span> <span class="code-type">file</span> *file) {
+    <span class="code-keyword">struct</span> <span class="code-type">files_struct</span> *files = current->files;
+    <span class="code-comment">// files->fdtable[fd] 就是用户态 fd 的"映射表"</span>
+    __fd_install(files, fd, file);
+}</pre></div>
+</div></div>
+
+<div class="step-card"><span class="step-num step-coderef">6</span>
+<div class="pair" style="margin-bottom:0;">
+<div class="principle-box"><b>后续 read/write</b>：read(fd,buf,size) 就是 fd → file → file->f_op->read_iter → ext4_read_iter → 读页缓存/调块层 → 提交给磁盘驱动。全链路又是多态！</div>
+<div class="code-box"><pre class="code-block" style="margin:0;"><span class="code-comment">// fs/read_write.c</span>
+<span class="code-type">ssize_t</span> <span class="code-func">vfs_read</span>(<span class="keyword">struct</span> <span class="code-type">file</span> *file, <span class="code-type">char</span> __user *buf, <span class="code-type">size_t</span> count, <span class="code-type">loff_t</span> *pos) {
+    <span class="code-keyword">if</span> (file->f_op->read)
+        <span class="code-keyword">return</span> file->f_op->read(file, buf, count, pos);  <span class="code-comment">// 虚函数调用！</span>
+    <span class="code-keyword">else if</span> (file->f_op->read_iter)
+        <span class="code-keyword">return</span> new_sync_read(file, buf, count, pos);
+}</pre></div>
+</div></div>
+</section>
+</section>
+
+<section id="s6">
+<h2>第六章 · 网络协议栈</h2>
+<div class="principle-box"><strong>本体论核心：</strong>网络的本体是 <code>sk_buff</code>（套接字缓冲区），它像一个"指针滑动的容器"承载着数据包在各层间流动。收发路径是"层套层"的封装/解封装过程；TCP 用状态机保证可靠性。</div>
+</section>
+
+<section id="s6-1">
+<h3>6.1 sk_buff：网络数据包的本体</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P20：为什么 sk_buff 要那么多指针？</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+数据包从上到下要不断"加头"（L2头→L3头→L4头→payload），从下到上要"去头"。sk_buff 用 head/data/tail/end 四个指针 + 每层 header 指针，配合 skb_push/skb_pull 滑动，<b>无需拷贝数据</b>即可完成封装/解封装，这是性能的关键。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C20：sk_buff 头部核心字段 <span class="badge badge-path">include/linux/skbuff.h:735</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">sk_buff</span> {
+    <span class="code-keyword">union</span> {
+        <span class="code-keyword">struct</span> <span class="code-type">net_device</span>  *dev;    <span class="code-comment">// 关联网卡</span>
+    };
+    <span class="code-keyword">union</span> {
+        <span class="code-keyword">struct</span> <span class="code-type">dst_entry</span>  *dst;    <span class="code-comment">// 路由缓存</span>
+        <span class="keyword">struct</span> <span class="code-type">rtable</span>     *rt_dst;
+    };
+    <span class="code-type">unsigned char</span> *head, *data, *tail, *end; <span class="code-comment">// ⭐ 四指针</span>
+    <span class="code-type">unsigned int</span>   len;            <span class="code-comment">// data~tail 总字节数</span>
+    <span class="code-type">unsigned int</span>   data_len;       <span class="code-comment">// 分片页中的数据长度</span>
+    <span class="code-type">__u16</span>          mac_len;
+    <span class="code-type">__u16</span>          hdr_len;
+    <span class="code-type">__u32</span>          priority;
+    <span class="code-keyword">union</span> {                         <span class="code-comment">// 各层头部指针（复用内存）</span>
+        <span class="code-type">struct</span> <span class="code-type">ethhdr</span>  *eth;       <span class="code-comment">// L2</span>
+        <span class="type">struct</span> <span class="code-type">iphdr</span>   *ip;        <span class="code-comment">// L3</span>
+        <span class="type">struct</span> <span class="code-type">tcphdr</span>  *tcp;       <span class="code-comment">// L4</span>
+        <span class="type">struct</span> <span class="code-type">udphdr</span>  *udp;
+    } h;
+
+    <span class="code-keyword">struct</span> <span class="code-type">sock</span>    *sk;            <span class="code-comment">// 所属socket</span>
+    <span class="code-keyword">struct</span> <span class="code-type">list_head</span> list;          <span class="code-comment">// 队列节点</span>
+};</pre>
+</div>
+</div>
+
+<h4>sk_buff 四指针示意图与 push/pull 动画</h4>
+<div class="svg-wrap">
+<svg viewBox="0 0 850 280" style="width:100%;max-width:850px;" id="skb-svg">
+<style>.skbbar{fill:#F3ECDC;stroke:#1A1310;stroke-width:1.5}.skbhead{fill:#FCE7E4;stroke:#C23A2B;stroke-width:1.5}.skbpay{fill:#DCEEE6;stroke:#2B5F4C;stroke-width:1.5}.skblab{font-family:'JetBrains Mono';font-size:11px}.skblab2{font-family:'Noto Serif SC';font-size:12px}</style>
+<rect x="80" y="50" width="680" height="50" class="skbbar" id="skb-buf"/>
+<text x="75" y="78" text-anchor="end" class="skblab">head</text><line x1="80" y1="45" x2="80" y2="105" stroke="#1A1310"/>
+<text x="765" y="78" text-anchor="start" class="skblab">end</text><line x1="760" y1="45" x2="760" y2="105" stroke="#1A1310"/>
+
+<rect x="260" y="50" width="320" height="50" class="skbpay" id="skb-pay"/>
+<text x="420" y="80" text-anchor="middle" class="skblab2">payload (data→tail)</text>
+<line x1="260" y1="45" x2="260" y2="115" stroke="#2B5F4C" stroke-width="2" id="skb-data"/>
+<text x="260" y="128" text-anchor="middle" class="skblab" fill="#2B5F4C" id="skb-datalab">data</text>
+<line x1="580" y1="45" x2="580" y2="115" stroke="#2B5F4C" stroke-width="2" id="skb-tail"/>
+<text x="580" y="128" text-anchor="middle" class="skblab" fill="#2B5F4C" id="skb-taillab">tail</text>
+
+<rect x="200" y="50" width="60" height="50" class="skbhead" id="skb-h" style="display:none"/>
+<text x="230" y="80" text-anchor="middle" class="skblab2" id="skb-hlab">L4头</text>
+
+<text x="80" y="180" class="skblab2" fill="#1A1310">skb_push(skb, n)：data 指针向左（地址减小方向）移动 n 字节，腾出空间加头</text>
+<text x="80" y="205" class="skblab2" fill="#1A1310">skb_pull(skb, n)：data 指针向右（地址增大方向）移动 n 字节，"吃"掉头部</text>
+<text x="80" y="240" class="skblab2" fill="#C23A2B" id="skb-msg">初始状态：payload = "Hello"；下面演示发送方向 push 三次加 L4/L3/L2 头</text>
+</svg>
+<div style="margin-top:.5rem;">
+<button class="play-btn" onclick="skbPush()">▶ skb_push (发送加头)</button>
+<button class="play-btn" style="background:#2B5F4C;margin-left:.5rem;" onclick="skbPull()">◀ skb_pull (接收去头)</button>
+</div>
+</div>
+
+<script>
+let state=0;
+const steps=[
+  {w:0,x:260,label:'',msg:'初始 payload 数据',d:260,t:580},
+  {w:60,x:200,label:'L4头',msg:'① skb_push(skb, tcphdr_len) → 留出TCP头，填sport/dport/seq/ack',d:200,t:580},
+  {w:60,x:140,label:'L3头',msg:'② skb_push(skb, iphdr_len) → 留出IP头，填saddr/daddr/proto',d:140,t:580},
+  {w:60,x:80,label:'L2头',msg:'③ skb_push(skb, ethhdr_len) → 留出Ethernet头，填smac/dmac',d:80,t:580}
+];
+function setStep(i){
+  const s=steps[i];
+  const h=document.getElementById('skb-h');
+  h.setAttribute('x',s.x);h.setAttribute('width',s.w);
+  document.getElementById('skb-hlab').textContent=s.label;
+  h.style.display=i===0?'none':'block';
+  document.getElementById('skb-data').setAttribute('x1',s.d);document.getElementById('skb-data').setAttribute('x2',s.d);
+  document.getElementById('skb-datalab').setAttribute('x',s.d);document.getElementById('skb-datalab').textContent=i===3?'data→Ether头':'data';
+  document.getElementById('skb-msg').textContent=s.msg;
+}
+function skbPush(){state=0;setStep(0);const t=setInterval(()=>{state++;setStep(state);if(state>=3)clearInterval(t);},1200);}
+function skbPull(){state=3;setStep(3);const t=setInterval(()=>{state--;setStep(state);if(state<=0)clearInterval(t);},1200);}
+</script>
+
+<div class="pair" style="margin-top:1rem;">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P21：socket 与 sock 的区别</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+• <code>struct socket</code>：VFS 层抽象，面向"文件语义"（因为 socket 在 VFS 里是一个特殊文件），有 file/inode 字段。<br>
+• <code>struct sock</code>（常简写成 sk）：网络栈 L4 层核心结构，面向协议（tcp_sock/udp_sock 通过"结构体嵌套"继承自 sock），有接收队列 receive_queue、发送队列 write_queue、状态等。<br>
+socket 和 sock 是一一对应关系：socket->sk = sock。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C21：sock 关键回调 <span class="badge badge-path">include/net/sock.h:340</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">sock</span> {
+    <span class="code-keyword">struct</span> <span class="code-type">socket</span>      *sk_socket;
+    <span class="code-type">unsigned short</span>     sk_family;      <span class="code-comment">// AF_INET/AF_INET6...</span>
+    <span class="code-type">atomic_t</span>           sk_rmem_alloc;  <span class="code-comment">// 接收队列已用内存</span>
+    <span class="type">atomic_t</span>           sk_wmem_alloc;  <span class="code-comment">// 发送队列已用内存</span>
+    <span class="keyword">struct</span> <span class="code-type">sk_buff_head</span> sk_receive_queue; <span class="code-comment">// 接收队列</span>
+    <span class="keyword">struct</span> <span class="code-type">sk_buff_head</span> sk_write_queue;   <span class="code-comment">// 发送队列</span>
+
+    <span class="code-keyword">const struct</span> <span class="code-type">proto</span> *sk_prot;       <span class="code-comment">// ⭐ L4 多态：tcp_prot / udp_prot</span>
+    <span class="keyword">const struct</span> <span class="code-type">proto_ops</span> *sk_prot_ops;<span class="code-comment">// AF层多态：inet_stream_ops</span>
+    <span class="type">unsigned char</span>      sk_state;        <span class="code-comment">// TCP状态（TCP_ESTABLISHED等）</span>
+};</pre>
+</div>
+</div>
+</section>
+
+<section id="s6-2">
+<h3>6.2 数据包收发完整流程</h3>
+<h4>发送路径（sendto → 网卡）</h4>
+<table>
+<thead><tr><th>层</th><th>原理</th><th>函数</th><th>位置</th></tr></thead>
+<tbody>
+<tr><td>用户态</td><td>应用调用 send/write</td><td>sys_sendto</td><td>net/socket.c</td></tr>
+<tr><td>Socket层</td><td>从fd找socket，调用proto_ops</td><td>sock_sendmsg → inet_sendmsg</td><td>net/ipv4/af_inet.c</td></tr>
+<tr><td>TCP层</td><td>切MSS、加TCP头、放入发送队列</td><td>tcp_sendmsg</td><td>net/ipv4/tcp.c</td></tr>
+<tr><td>IP层</td><td>查路由、加IP头、分片（必要时）</td><td>ip_queue_xmit / ip_output</td><td>net/ipv4/ip_output.c</td></tr>
+<tr><td>邻居子系统</td><td>查找下一跳 MAC 地址</td><td>neigh_resolve_output</td><td>net/core/neighbour.c</td></tr>
+<tr><td>设备层</td><td>加Ethernet头，放入发送队列</td><td>dev_queue_xmit</td><td>net/core/dev.c</td></tr>
+<tr><td>TC/驱动</td><td>流量控制（qdisc）+ 驱动硬启动发送</td><td>sch_direct_xmit → ndo_start_xmit</td><td>drivers/net/ethernet/...</td></tr>
+</tbody></table>
+
+<h4>接收路径（网卡 → 用户态）</h4>
+<table>
+<thead><tr><th>层</th><th>原理</th><th>函数</th><th>位置</th></tr></thead>
+<tbody>
+<tr><td>硬中断</td><td>网卡 DMA 收包到 Ring Buffer → MSI-X 中断</td><td>驱动注册的 ISR（如 ixgbe_msix_clean_rings）</td><td>drivers/net/...</td></tr>
+<tr><td>软中断</td><td>触发 NET_RX_SOFTIRQ → NAPI poll 批量收包</td><td>net_rx_action → napi_poll</td><td>net/core/dev.c</td></tr>
+<tr><td>设备层</td><td>GRO聚合、分配 skb、VLAN处理</td><td>netif_receive_skb</td><td>net/core/dev.c</td></tr>
+<tr><td>L3</td><td>按ETHTYPE分发：ip_rcv/arp_rcv</td><td>ip_rcv → ip_rcv_finish</td><td>net/ipv4/ip_input.c</td></tr>
+<tr><td>L4</td><td>查路由→按protocol分发：tcp_v4_rcv/udp_rcv</td><td>tcp_v4_rcv</td><td>net/ipv4/tcp_ipv4.c</td></tr>
+<tr><td>TCP层</td><td>校验、状态机、放入socket接收队列</td><td>tcp_v4_do_rcv → tcp_queue_rcv</td><td>net/ipv4/tcp_ipv4.c / tcp_input.c</td></tr>
+<tr><td>唤醒</td><td>sk_data_ready 通知等待的进程</td><td>sk->sk_data_ready(sk)</td><td>—</td></tr>
+<tr><td>用户态</td><td>recv/read 返回，epoll_wait 被唤醒</td><td>sys_recvfrom → tcp_recvmsg</td><td>net/ipv4/tcp.c</td></tr>
+</tbody></table>
+</section>
+
+<section id="s6-3">
+<h3>6.3 TCP 三次握手：状态机精确对应代码</h3>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P22：三次握手为什么是三次？</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+核心问题：确认双方"发"和"收"的能力都正常。<br>
+• 客户端 SYN → 服务端：证明"客户端能发"<br>
+• 服务端 SYN+ACK → 客户端：证明"服务端能收、能发"<br>
+• 客户端 ACK → 服务端：证明"客户端能收"<br>
+两次不够（服务端无法确认客户端能收）；四次没必要（中间的ACK+SYN可以合并）。<br>
+三次握手的过程同时也是内核创建"半连接队列（SYN queue）"和"全连接队列（accept queue）"的过程。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C22：服务端 SYN 接收 <span class="badge badge-path">net/ipv4/tcp_input.c:6570 tcp_v4_conn_request</span></div>
+<pre class="code-block"><span class="code-type">int</span> <span class="code-func">tcp_v4_conn_request</span>(<span class="keyword">struct</span> <span class="code-type">sock</span> *sk, <span class="keyword">struct</span> <span class="code-type">sk_buff</span> *skb) {
+    <span class="code-comment">// 1. 从半连接队列看是否满（tcp_max_syn_backlog）</span>
+    <span class="code-comment">// 2. 分配 request_sock（半连接对象），填入 isn、mss、window</span>
+    <span class="type">struct</span> <span class="code-type">request_sock</span> *req = <span class="code-func">inet_reqsk_alloc</span>(&amp;tcp_request_sock_ops);
+    <span class="code-func">tcp_openreq_init</span>(req, skb, sk);
+    <span class="code-func">tcp_v4_send_synack</span>(sk, dst, req);  <span class="code-comment">// ⭐ 发 SYN+ACK</span>
+    <span class="code-func">inet_csk_reqsk_queue_hash_add</span>(sk, req, TCP_TIMEOUT_INIT);
+    <span class="code-comment">// 3. 半连接入 SYN queue（哈希表），等 ACK</span>
+}</pre>
+</div>
+</div>
+
+<h4>三次握手状态机原理图</h4>
+<div class="svg-wrap">
+<svg viewBox="0 0 850 240" style="width:100%;max-width:850px;">
+<style>.cbox{fill:#FFF9EC;stroke:#1A1310;stroke-width:1.5;rx:8}.clab{font-family:'Noto Serif SC';font-size:13px;font-weight:700;text-anchor:middle}.csub{font-family:'JetBrains Mono';font-size:11px;fill:#6B5B43;text-anchor:middle}.cl{stroke:#C23A2B;stroke-width:2;fill:none;marker-end:url(#arr)}.cp{font-family:'JetBrains Mono';font-size:11px;fill:#C23A2B}</style>
+<rect x="30" y="80" width="150" height="60" class="cbox"/><text x="105" y="108" class="clab">CLOSE</text><text x="105" y="126" class="csub">初始状态</text>
+<rect x="230" y="20" width="180" height="50" class="cbox"/><text x="320" y="45" class="clab">SYN_SENT</text><text x="320" y="60" class="csub">客户端发SYN后</text>
+<rect x="600" y="20" width="200" height="50" class="cbox"/><text x="700" y="45" class="clab">SYN_RCVD</text><text x="700" y="60" class="csub">服务端收到SYN发了SYN+ACK</text>
+<rect x="350" y="170" width="200" height="50" class="cbox"/><text x="450" y="195" class="clab">ESTABLISHED</text><text x="450" y="210" class="csub">三次握手完成</text>
+<rect x="640" y="170" width="180" height="50" class="cbox"/><text x="730" y="195" class="clab">LISTEN</text><text x="730" y="210" class="csub">服务端listen</text>
+<path d="M 180 80 L 240 45" class="cl"/><text x="185" y="55" class="cp">connect()发SYN</text>
+<path d="M 410 45 L 600 45" class="cl"/><text x="470" y="38" class="cp">收到SYN→发SYN+ACK</text>
+<path d="M 320 70 L 380 170" class="cl"/><text x="265" y="130" class="cp">收到SYN+ACK→发ACK</text>
+<path d="M 700 70 L 520 170" class="cl"/><text x="620" y="130" class="cp">收到ACK→进入ESTAB</text>
+<path d="M 730 170 L 700 70" class="cl" style="stroke-dasharray:4,3;stroke:#2B5F4C"/><text x="735" y="125" class="cp" fill="#2B5F4C">收到SYN</text>
+</svg>
+</div>
+
+<table>
+<thead><tr><th>方向</th><th>段</th><th>客户端状态变化</th><th>关键函数</th><th>服务端状态变化</th><th>关键函数</th></tr></thead>
+<tbody>
+<tr><td>C→S</td><td>SYN (seq=isn_c)</td><td>CLOSED → SYN_SENT</td><td>tcp_connect() / tcp_v4_connect</td><td>LISTEN → SYN_RCVD</td><td>tcp_v4_do_rcv → tcp_v4_conn_request</td></tr>
+<tr><td>S→C</td><td>SYN+ACK (seq=isn_s, ack=isn_c+1)</td><td>SYN_SENT → ESTABLISHED</td><td>tcp_rcv_state_process → tcp_send_ack</td><td>仍为 SYN_RCVD</td><td>reqsk_queue_hash_add</td></tr>
+<tr><td>C→S</td><td>ACK (ack=isn_s+1)</td><td>ESTABLISHED（不变）</td><td>—</td><td>SYN_RCVD → ESTABLISHED</td><td>tcp_check_req → tcp_v4_syn_recv_sock → inet_csk_complete_hashdance（移到accept queue）</td></tr>
+</tbody></table>
+<p style="font-size:13px;color:#6B5B43;margin-top:.5rem;">accept() 就是"从 accept queue 拿出一个已经三次握手完成的 sock"，所以 accept 不会等到 SYN，它只取 ESTABLISHED 的连接。</p>
+</section>
+</section>
+
+<section id="s7">
+<h2>第七章 · 设备驱动模型</h2>
+<div class="principle-box"><strong>本体论核心：</strong>Linux 用 bus-device-driver 三角模型实现驱动"自动发现、自动绑定"。驱动与设备通过 id_table match，match 上了就调用 probe 让驱动去初始化设备。所有设备最终以 sysfs 的形式向用户态展现。</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P23：kobject —— 设备模型的地基</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+sysfs 里的每个目录对应一个 kobject：有名字、有父节点、有引用计数、有属性（文件）。bus/device/driver/class 都是"内嵌 kobject"的派生结构——又一次 P0 的 C 语言面向对象。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C23：三大核心结构 <span class="badge badge-path">include/linux/device.h / include/linux/bus.h</span></div>
+<pre class="code-block"><span class="code-keyword">struct</span> <span class="code-type">bus_type</span> {
+    <span class="code-keyword">const char</span>       *name;           <span class="code-comment">// "pci"/"usb"/"platform"/"i2c"...</span>
+    <span class="keyword">struct</span> <span class="code-type">bus_attribute</span> *bus_attrs;
+    <span class="keyword">struct</span> <span class="code-type">device_attribute</span> *dev_attrs;
+    <span class="keyword">struct</span> <span class="code-type">driver_attribute</span> *drv_attrs;
+    <span class="type">int</span> (*<span class="code-func">match</span>)(<span class="keyword">struct</span> <span class="code-type">device</span> *dev, <span class="keyword">struct</span> <span class="code-type">device_driver</span> *drv);  <span class="code-comment">// 匹配规则</span>
+    <span class="type">int</span> (*<span class="code-func">uevent</span>)(...);
+    <span class="type">int</span> (*<span class="code-func">probe</span>)(<span class="keyword">struct</span> <span class="code-type">device</span> *dev);
+    <span class="keyword">struct</span> <span class="code-type">subsys_private</span> *p;
+    <span class="keyword">struct</span> <span class="code-type">kset</span> subsys;        <span class="code-comment">// /sys/bus/xxx 下面的容器</span>
+};
+
+<span class="code-keyword">struct</span> <span class="code-type">device_driver</span> {
+    <span class="code-keyword">const char</span>            *name;
+    <span class="keyword">struct</span> <span class="code-type">bus_type</span>       *bus;      <span class="code-comment">// 挂载到哪个总线</span>
+    <span class="keyword">const struct</span> <span class="code-type">of_device_id</span> *of_match_table;  <span class="code-comment">// 设备树匹配表</span>
+    <span class="keyword">const struct</span> <span class="code-type">acpi_device_id</span> *acpi_match_table;
+    <span class="type">int</span> (*<span class="code-func">probe</span>) (<span class="keyword">struct</span> <span class="code-type">device</span> *dev);   <span class="code-comment">// ⭐ 匹配成功后调用</span>
+    <span class="type">int</span> (*<span class="code-func">remove</span>)(<span class="keyword">struct</span> <span class="code-type">device</span> *dev);
+    <span class="keyword">struct</span> <span class="code-type">module</span>         *owner;
+    <span class="keyword">struct</span> <span class="code-type">kobject</span>         kobj;
+};
+
+<span class="code-keyword">struct</span> <span class="code-type">device</span> {
+    <span class="keyword">struct</span> <span class="code-type">kobject</span>         kobj;
+    <span class="keyword">struct</span> <span class="code-type">bus_type</span>       *bus;
+    <span class="keyword">struct</span> <span class="code-type">device_driver</span>  *driver;  <span class="code-comment">// ⭐ 绑定后指向驱动</span>
+    <span class="keyword">void</span>                   *platform_data;
+    <span class="keyword">void</span>                   *driver_data;  <span class="code-comment">// 驱动私有数据</span>
+    <span class="type">dev_t</span>                  devt;     <span class="code-comment">// 设备号(主+次)</span>
+    <span class="keyword">struct</span> <span class="code-type">device</span>         *parent;
+};</pre>
+</div>
+</div>
+
+<h4>设备驱动匹配流程</h4>
+<div class="step-card"><span class="step-num">1</span><b>设备注册</b>：PCI 枚举 / 设备树解析 / ACPI 发现真实硬件后，<code>device_register()</code> 将 device 挂入 bus->p->devices_kset 链表。</div>
+<div class="step-card"><span class="step-num">2</span><b>驱动注册</b>：驱动模块加载时 module_init → driver_register()，把 driver 挂入 bus->p->drivers_kset。</div>
+<div class="step-card"><span class="step-num">3</span><b>match</b>：无论设备先来还是驱动先来，内核都会调用 bus->match()（如 platform_match 按 name 比对、pci_match 按 vendor:device ID 比对、of_match_table 按 compatible 比对）。</div>
+<div class="step-card"><span class="step-num">4</span><b>probe</b>：match 成功后，调用 driver->probe(dev)——这是驱动做一切初始化（分配资源、ioremap、注册中断、注册字符设备、创建设备节点）的地方。</div>
+<div class="step-card"><span class="step-num step-coderef">5</span><b>绑定</b>：probe 返回 0 表示成功，device->driver = driver，二者绑定；之后用户态 open("/dev/xxx") 就能调到 file_operations 里的函数。</div>
+
+<pre class="code-block" style="font-size:12.5px;line-height:1.65;"><span class="code-comment">// 一个典型 platform_driver 例子（简化）</span>
+<span class="code-keyword">static const struct</span> <span class="code-type">of_device_id</span> my_of_match[] = {
+    { .compatible = <span class="code-string">"mycompany,mydev"</span> }, { }
+};
+
+<span class="code-keyword">static int</span> <span class="code-func">my_probe</span>(<span class="keyword">struct</span> <span class="code-type">platform_device</span> *pdev) {
+    <span class="keyword">struct</span> <span class="code-type">resource</span> *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+    <span class="keyword">void</span> __iomem *base = <span class="code-func">devm_ioremap_resource</span>(&amp;pdev->dev, res);
+    <span class="code-func">devm_request_irq</span>(&amp;pdev->dev, irq, my_irq_handler, 0, <span class="code-string">"mydev"</span>, NULL);
+    <span class="code-func">misc_register</span>(&amp;my_miscdev);  <span class="code-comment">// 注册 /dev/mydev</span>
+    <span class="keyword">return</span> 0;
+}
+
+<span class="code-keyword">static struct</span> <span class="code-type">platform_driver</span> my_drv = {
+    .probe = my_probe,
+    .driver = { .name = <span class="code-string">"mydev"</span>, .of_match_table = my_of_match },
+};
+<span class="code-func">module_platform_driver</span>(my_drv);   <span class="code-comment">// module_init/exit 宏</span></pre>
+</section>
+
+<section id="s8">
+<h2>第八章 · 系统调用</h2>
+<div class="principle-box"><strong>本体论核心：</strong>系统调用是"用户态向内核态请求服务的唯一合法入口"，本质是"用约定好的编号+寄存器，触发一次受控的特权级切换"。x86_64 用 syscall 指令进入，entry_SYSCALL_64 是唯一入口。</div>
+
+<div class="pair">
+<div class="principle-box">
+<div class="pair-title"><span class="dot p-dot"></span>原理 P24：系统调用约定 x86_64</div>
+<p style="margin:.5rem 0 0;font-size:14px;line-height:1.7;">
+• rax = 系统调用号（sys_read=0, sys_write=1, sys_open=2, ..., sys_openat=257）<br>
+• 参数：rdi, rsi, rdx, r10, r8, r9（最多6个）<br>
+• 返回值：rax（负值表示 -errno）<br>
+• 进入后切换到内核栈、保存寄存器、根据 rax 查 sys_call_table 调用目标函数。
+</p>
+</div>
+<div class="code-box">
+<div class="pair-title"><span class="dot c-dot"></span>代码 C24：系统调用表与入口 <span class="badge badge-path">arch/x86/entry/syscall_64.c / arch/x86/entry/entry_64.S</span></div>
+<pre class="code-block"><span class="code-comment">// arch/x86/entry/syscall_64.c</span>
+<span class="code-keyword">asmlinkage const</span> <span class="code-type">sys_call_ptr_t</span> sys_call_table[__NR_syscall_max+1] = {
+    [0]  = sys_read,
+    [1]  = sys_write,
+    [2]  = sys_open,   <span class="code-comment">// 旧，现代用257=openat</span>
+    [3]  = sys_close,
+    [5]  = sys_newfstat,
+    [9]  = sys_mmap,
+    [60] = sys_exit,
+    [257]= sys_openat,
+    <span class="code-comment">// ...</span>
+};
+
+<span class="code-comment">// entry_64.S 关键代码（汇编）</span>
+<span class="code-comment">// ENTRY(entry_SYSCALL_64)
+//   swapgs                 // 切换到内核GS（per-cpu）
+//   mov  %rsp, %rsp_scratch
+//   mov  PER_CPU_VAR(cpu_current_top_of_stack), %rsp  // 切内核栈
+//   pushq %rsp_scratch     // 保存用户栈
+//   pushq %r11 ... %rdi    // 保存寄存器
+//   call  *sys_call_table(,%rax,8)  // ⭐ 间接调用
+//   ...  返回到用户态 sysretq</span></pre>
+</div>
+</div>
+
+<h4>read() 系统调用全链路（用户态到磁盘）</h4>
+<table>
+<thead><tr><th>阶段</th><th>位置</th><th>关键函数</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>用户态</td><td>glibc</td><td>read() → syscall</td><td>把fd/buf/count放寄存器，调syscall指令</td></tr>
+<tr><td>入口</td><td>entry_64.S</td><td>entry_SYSCALL_64</td><td>swapgs、换栈、保存上下文</td></tr>
+<tr><td>分派</td><td>fs/read_write.c</td><td>__x64_sys_read → ksys_read → vfs_read</td><td>根据fd找struct file</td></tr>
+<tr><td>VFS多态</td><td>fs/read_write.c</td><td>file->f_op->read_iter()</td><td>调用具体文件系统（ext4_read_iter）</td></tr>
+<tr><td>页缓存</td><td>mm/filemap.c</td><td>generic_file_read_iter → filemap_get_pages</td><td>命中page cache则直接拷给用户</td></tr>
+<tr><td>提交IO</td><td>—</td><td>若缓存未命中，映射页→submit_bio</td><td>构造bio请求</td></tr>
+<tr><td>块层</td><td>block/</td><td>blk_mq_submit_bio → NVMe驱动</td><td>通过多队列块层送驱动</td></tr>
+<tr><td>等待</td><td>wait.h</td><td>wait_on_page_locked → io_schedule</td><td>进程睡眠TASK_UNINTERRUPTIBLE</td></tr>
+<tr><td>完成</td><td>驱动中断</td><td>硬中断→软中断blk_mq_complete_work</td><td>bio完成、解锁页、唤醒进程</td></tr>
+<tr><td>返回</td><td>—</td><td>数据从page cache copy_to_user</td><td>返回字节数给用户态</td></tr>
+</tbody></table>
+</section>
+
+<section id="s9">
+<h2>附录 · 原理-代码对照总表</h2>
+<table>
+<thead><tr><th>编号</th><th>原理</th><th>对应核心结构体/宏/函数</th><th>源码路径</th></tr></thead>
+<tbody>
+<tr><td>P0</td><td>C语言面向对象：结构体嵌套+函数指针</td><td>file_operations / sched_class / proto</td><td>include/linux/fs.h / sched.h</td></tr>
+<tr><td>P1</td><td>container_of：基类→派生类反解</td><td>container_of / list_entry</td><td>include/linux/kernel.h</td></tr>
+<tr><td>P2</td><td>list_head：侵入式双向循环链表</td><td>struct list_head / list_for_each</td><td>include/linux/list.h</td></tr>
+<tr><td>P3</td><td>进程=task_struct</td><td>struct task_struct</td><td>include/linux/sched.h:728</td></tr>
+<tr><td>P4</td><td>current宏取当前进程</td><td>get_current() / this_cpu_read_stable</td><td>arch/x86/include/asm/current.h</td></tr>
+<tr><td>P5</td><td>fork+写时复制</td><td>_do_fork / copy_process / copy_mm</td><td>kernel/fork.c</td></tr>
+<tr><td>P6</td><td>COW缺页复制</td><td>do_wp_page / wp_page_copy</td><td>mm/memory.c:2984</td></tr>
+<tr><td>P7</td><td>CFS红黑树按vruntime选进程</td><td>sched_entity.vruntime / pick_next_task_fair</td><td>kernel/sched/fair.c</td></tr>
+<tr><td>P8</td><td>调度类多态链</td><td>struct sched_class / stop_sched_class→idle</td><td>kernel/sched/core.c</td></tr>
+<tr><td>P9</td><td>上下文切换=换mm+换寄存器</td><td>context_switch / switch_mm / switch_to</td><td>kernel/sched/core.c:3569</td></tr>
+<tr><td>P10</td><td>进程=虚拟地址空间mm</td><td>struct mm_struct / pgd</td><td>include/linux/mm_types.h:482</td></tr>
+<tr><td>P11</td><td>VMA：虚存区间</td><td>struct vm_area_struct</td><td>include/linux/mm_types.h:351</td></tr>
+<tr><td>P12</td><td>缺页异常按需分配</td><td>do_page_fault / handle_mm_fault</td><td>arch/x86/mm/fault.c</td></tr>
+<tr><td>P13</td><td>VMA红黑树查找</td><td>find_vma</td><td>mm/mmap.c:2337</td></tr>
+<tr><td>P14</td><td>四级页表稀疏映射</td><td>pgd/pud/pmd/pte + pgd_offset 系列</td><td>arch/x86/include/asm/pgtable.h</td></tr>
+<tr><td>P15</td><td>中断号→处理函数（IDT）</td><td>gate_desc / load_idt / set_intr_gate</td><td>arch/x86/kernel/idt.c</td></tr>
+<tr><td>P16</td><td>irq_desc：每个IRQ的总控</td><td>struct irq_desc / irqaction</td><td>include/linux/irqdesc.h</td></tr>
+<tr><td>P17</td><td>上半部+下半部分层</td><td>softirq_vec / tasklet / workqueue</td><td>kernel/softirq.c</td></tr>
+<tr><td>P18</td><td>spinlock不可睡/mutex可睡</td><td>spinlock_t / struct mutex</td><td>include/linux/spinlock.h / mutex.h</td></tr>
+<tr><td>P19</td><td>VFS四对象：sb/inode/dentry/file</td><td>super_block / inode / dentry / file</td><td>include/linux/fs.h</td></tr>
+<tr><td>P20</td><td>sk_buff四指针零拷贝封装</td><td>head/data/tail/end + skb_push/pull</td><td>include/linux/skbuff.h:735</td></tr>
+<tr><td>P21</td><td>socket与sock两层抽象</td><td>struct socket / struct sock / proto</td><td>include/linux/net.h / net/sock.h</td></tr>
+<tr><td>P22</td><td>TCP三次握手与半/全连接队列</td><td>tcp_v4_conn_request / tcp_v4_syn_recv_sock</td><td>net/ipv4/tcp_ipv4.c</td></tr>
+<tr><td>P23</td><td>bus-device-driver 自动匹配</td><td>bus_type / device_driver / device / probe</td><td>drivers/base/ / include/linux/device.h</td></tr>
+<tr><td>P24</td><td>系统调用编号+寄存器约定</td><td>sys_call_table / entry_SYSCALL_64</td><td>arch/x86/entry/syscall_64.c / entry_64.S</td></tr>
+</tbody></table>
+
+<footer style="margin-top:3rem;padding-top:1.5rem;border-top:1px solid #E2D7BE;color:#6B5B43;font-size:13px;text-align:center;">
+Linux 内核本体论 · 原理 × 代码 一一对应 · 基于 Linux 6.x 源码<br>
+每个原理都能在源码中找到精确对应的结构体/函数/宏
+</footer>
 
 </main>
 
-<footer class="border-t border-[var(--border)] py-8 mt-16 text-center text-sm text-gray-600">
-  <div class="flex justify-center gap-6 mb-4">
-    <a href="https://yejinlei.github.io/Buddhist" class="hover:text-[var(--vermillion)]">🧘 佛学本体论</a>
-    <a href="https://yejinlei.github.io/agent-media" class="hover:text-[var(--vermillion)]">🎬 音视频本体论</a>
-    <a href="https://yejinlei.github.io/agent-linux" class="hover:text-[var(--vermillion)] font-bold">🐧 Linux内核本体论</a>
-  </div>
-  <p>基于Linux 6.12内核源码构建 · 本体工程 v1.0</p>
-</footer>
-
 <script>
-// Tab切换
-function showProcTab(tab) {
-  document.querySelectorAll('.proc-tab').forEach(el => el.classList.add('hidden'));
-  document.getElementById('proc-'+tab).classList.remove('hidden');
-  document.querySelectorAll('#process .tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if(tab === 'schedclass') renderSchedClass();
-  if(tab === 'state') renderProcState();
-}
-function showMemTab(tab) {
-  document.querySelectorAll('.mem-tab').forEach(el => el.classList.add('hidden'));
-  document.getElementById('mem-'+tab).classList.remove('hidden');
-  document.querySelectorAll('#memory .tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if(tab === 'translate') renderPageTable();
-}
-function showNetTab(tab) {
-  document.querySelectorAll('.net-tab').forEach(el => el.classList.add('hidden'));
-  document.getElementById('net-'+tab).classList.remove('hidden');
-  document.querySelectorAll('#tcpip .tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if(tab === 'layering') renderTcpFlow();
-  if(tab === 'tcp') renderTcpState();
-  if(tab === 'netfilter') renderNetfilter();
-  if(tab === 'congestion') renderCongestion();
-}
-function showVfsTab(tab) {}
-
-// 图表渲染
-function renderSchedClass() {
-  const chart = echarts.init(document.getElementById('schedClassChart'));
-  chart.setOption({
-    title: {text: '调度类优先级链：从高到低依次遍历', left: 'center'},
-    series: [{
-      type: 'graph', layout: 'none', symbolSize: 100, roam: true,
-      label: {show: true, fontSize: 12, fontWeight: 'bold'},
-      edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 10,
-      data: [
-        {name: 'stop_sched_class', x: 100, y: 200, itemStyle:{color:'#dc2626'}, value:'停机任务'},
-        {name: 'dl_sched_class', x: 300, y: 200, itemStyle:{color:'#ea580c'}, value:'Deadline限期'},
-        {name: 'rt_sched_class', x: 500, y: 200, itemStyle:{color:'#ca8a04'}, value:'实时FIFO/RR'},
-        {name: 'fair_sched_class', x: 700, y: 200, itemStyle:{color:'#16a34a'}, value:'CFS/EEVDF普通'},
-        {name: 'idle_sched_class', x: 900, y: 200, itemStyle:{color:'#6b7280'}, value:'空闲任务'},
-      ],
-      links: [
-        {source:'stop_sched_class', target:'dl_sched_class'},
-        {source:'dl_sched_class', target:'rt_sched_class'},
-        {source:'rt_sched_class', target:'fair_sched_class'},
-        {source:'fair_sched_class', target:'idle_sched_class'},
-      ]
-    }]
-  });
-}
-
-function renderProcState() {
-  const chart = echarts.init(document.getElementById('procStateChart'));
-  chart.setOption({
-    title: {text: '进程状态迁移图', left: 'center'},
-    series: [{
-      type: 'graph', layout: 'force', roam: true, symbolSize: 80,
-      label: {show: true, fontSize: 11, fontWeight: 'bold'},
-      edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 8,
-      force: {repulsion: 300, edgeLength: 120},
-      data: [
-        {name:'TASK_RUNNING', itemStyle:{color:'#22c55e'}, value:'可运行/运行中'},
-        {name:'TASK_INTERRUPTIBLE', itemStyle:{color:'#3b82f6'}, value:'可中断睡眠'},
-        {name:'TASK_UNINTERRUPTIBLE', itemStyle:{color:'#f59e0b'}, value:'不可中断睡眠(D状态)'},
-        {name:'TASK_STOPPED', itemStyle:{color:'#8b5cf6'}, value:'暂停'},
-        {name:'TASK_ZOMBIE', itemStyle:{color:'#6b7280'}, value:'僵尸'},
-        {name:'EXIT_DEAD', itemStyle:{color:'#ef4444'}, value:'死亡'},
-      ],
-      links: [
-        {source:'TASK_RUNNING', target:'TASK_INTERRUPTIBLE', label:{show:true,formatter:'IO等待/睡眠'}},
-        {source:'TASK_INTERRUPTIBLE', target:'TASK_RUNNING', label:{show:true,formatter:'唤醒/信号'}},
-        {source:'TASK_RUNNING', target:'TASK_UNINTERRUPTIBLE', label:{show:true,formatter:'磁盘IO'}},
-        {source:'TASK_UNINTERRUPTIBLE', target:'TASK_RUNNING', label:{show:true,formatter:'IO完成'}},
-        {source:'TASK_RUNNING', target:'TASK_STOPPED', label:{show:true,formatter:'SIGSTOP'}},
-        {source:'TASK_STOPPED', target:'TASK_RUNNING', label:{show:true,formatter:'SIGCONT'}},
-        {source:'TASK_RUNNING', target:'TASK_ZOMBIE', label:{show:true,formatter:'exit()'}},
-        {source:'TASK_ZOMBIE', target:'EXIT_DEAD', label:{show:true,formatter:'父进程wait()'}},
-      ]
-    }]
-  });
-}
-
-function renderPageTable() {
-  const chart = echarts.init(document.getElementById('pageTableChart'));
-  chart.setOption({
-    title: {text: 'x86_64四级页表地址翻译流程', left: 'center'},
-    series: [{
-      type: 'sankey', left: 50, nodeWidth: 30, nodeGap: 20, layoutIterations: 0,
-      label: {fontSize: 12},
-      data: [
-        {name:'虚拟地址'}, {name:'PGD偏移(9位)'}, {name:'PUD偏移(9位)'},
-        {name:'PMD偏移(9位)'}, {name:'PTE偏移(9位)'}, {name:'页内偏移(12位)'},
-        {name:'PGD页全局目录'}, {name:'PUD上级页目录'}, {name:'PMD中间页目录'},
-        {name:'PTE页表项'}, {name:'物理页框'}, {name:'物理地址'}
-      ],
-      links: [
-        {source:'虚拟地址', target:'PGD偏移(9位)', value:1},
-        {source:'虚拟地址', target:'PUD偏移(9位)', value:1},
-        {source:'虚拟地址', target:'PMD偏移(9位)', value:1},
-        {source:'虚拟地址', target:'PTE偏移(9位)', value:1},
-        {source:'虚拟地址', target:'页内偏移(12位)', value:1},
-        {source:'PGD偏移(9位)', target:'PGD页全局目录', value:1},
-        {source:'PGD页全局目录', target:'PUD上级页目录', value:1},
-        {source:'PUD偏移(9位)', target:'PUD上级页目录', value:1},
-        {source:'PUD上级页目录', target:'PMD中间页目录', value:1},
-        {source:'PMD偏移(9位)', target:'PMD中间页目录', value:1},
-        {source:'PMD中间页目录', target:'PTE页表项', value:1},
-        {source:'PTE偏移(9位)', target:'PTE页表项', value:1},
-        {source:'PTE页表项', target:'物理页框', value:1},
-        {source:'页内偏移(12位)', target:'物理地址', value:1},
-        {source:'物理页框', target:'物理地址', value:1},
-      ],
-      lineStyle: {color: 'gradient', curveness: 0.5}
-    }]
-  });
-}
-
-function renderTcpFlow() {
-  const chart = echarts.init(document.getElementById('tcpFlowChart'));
-  chart.setOption({
-    title: {text: 'TCP数据包收发四层流转', left: 'center'},
-    series: [{
-      type: 'graph', layout: 'none', roam: false, symbolSize: [120,50], symbol:'rect',
-      label: {show:true, fontSize:13, fontWeight:'bold', color:'white'},
-      edgeSymbol: ['none','arrow'], edgeSymbolSize:10,
-      lineStyle: {width:3, type:'dashed', color:'#b8860b'},
-      data: [
-        {name:'应用层', x:100, y:50, itemStyle:{color:'#22c55e'}},
-        {name:'TCP传输层', x:300, y:50, itemStyle:{color:'#eab308'}},
-        {name:'IP网络层', x:500, y:50, itemStyle:{color:'#f97316'}},
-        {name:'网卡驱动', x:700, y:50, itemStyle:{color:'#ef4444'}},
-        {name:'read()/write()', x:100, y:250, itemStyle:{color:'#16a34a'}},
-        {name:'TCP分段/重组', x:300, y:250, itemStyle:{color:'#ca8a04'}},
-        {name:'IP路由/分片', x:500, y:250, itemStyle:{color:'#ea580c'}},
-        {name:'skb_put/skb_push', x:700, y:250, itemStyle:{color:'#dc2626'}},
-      ],
-      links: [
-        {source:'应用层', target:'TCP传输层', label:{show:true,formatter:'写数据'}},
-        {source:'TCP传输层', target:'IP网络层', label:{show:true,formatter:'加TCP头'}},
-        {source:'IP网络层', target:'网卡驱动', label:{show:true,formatter:'加IP头'}},
-        {source:'read()/write()', target:'TCP分段/重组'},
-        {source:'TCP分段/重组', target:'IP路由/分片'},
-        {source:'IP路由/分片', target:'skb_put/skb_push'},
-        {source:'网卡驱动', target:'IP网络层', label:{show:true,formatter:'收包', lineStyle:{color:'#22c55e'}}},
-        {source:'IP网络层', target:'TCP传输层', label:{show:true,formatter:'去IP头'}},
-        {source:'TCP传输层', target:'应用层', label:{show:true,formatter:'去TCP头'}},
-      ]
-    }]
-  });
-}
-
-function renderTcpState() {
-  const chart = echarts.init(document.getElementById('tcpStateChart'));
-  const states = [
-    {name:'CLOSED', x:100, y:200, itemStyle:{color:'#6b7280'}},
-    {name:'LISTEN', x:300, y:100, itemStyle:{color:'#3b82f6'}},
-    {name:'SYN_SENT', x:300, y:300, itemStyle:{color:'#f59e0b'}},
-    {name:'SYN_RCVD', x:500, y:100, itemStyle:{color:'#f97316'}},
-    {name:'ESTABLISHED', x:500, y:200, itemStyle:{color:'#22c55e'}},
-    {name:'FIN_WAIT_1', x:700, y:300, itemStyle:{color:'#8b5cf6'}},
-    {name:'FIN_WAIT_2', x:850, y:300, itemStyle:{color:'#a855f7'}},
-    {name:'TIME_WAIT', x:950, y:200, itemStyle:{color:'#ec4899'}},
-    {name:'CLOSE_WAIT', x:700, y:100, itemStyle:{color:'#ef4444'}},
-    {name:'LAST_ACK', x:850, y:100, itemStyle:{color:'#dc2626'}},
-    {name:'CLOSING', x:700, y:200, itemStyle:{color:'#9ca3af'}},
-  ];
-  chart.setOption({
-    title:{text:'TCP 11状态迁移图（服务端/客户端）',left:'center'},
-    series:[{type:'graph',layout:'none',roam:true,symbolSize:85,
-      label:{show:true,fontSize:10,fontWeight:'bold'},
-      edgeSymbol:['none','arrow'],edgeSymbolSize:8,
-      data:states,
-      links:[
-        {source:'CLOSED',target:'LISTEN',label:{formatter:'passive open: listen()'}},
-        {source:'CLOSED',target:'SYN_SENT',label:{formatter:'active open: connect()'}},
-        {source:'LISTEN',target:'SYN_RCVD',label:{formatter:'收SYN，发SYN+ACK'}},
-        {source:'SYN_SENT',target:'ESTABLISHED',label:{formatter:'收SYN+ACK，发ACK'}},
-        {source:'SYN_SENT',target:'SYN_RCVD',label:{formatter:'同时打开'}},
-        {source:'SYN_RCVD',target:'ESTABLISHED',label:{formatter:'收ACK'}},
-        {source:'ESTABLISHED',target:'FIN_WAIT_1',label:{formatter:'主动close: 发FIN'}},
-        {source:'ESTABLISHED',target:'CLOSE_WAIT',label:{formatter:'收FIN，发ACK'}},
-        {source:'FIN_WAIT_1',target:'FIN_WAIT_2',label:{formatter:'收ACK'}},
-        {source:'FIN_WAIT_1',target:'CLOSING',label:{formatter:'同时关闭：收FIN'}},
-        {source:'FIN_WAIT_2',target:'TIME_WAIT',label:{formatter:'收FIN，发ACK'}},
-        {source:'CLOSING',target:'TIME_WAIT',label:{formatter:'收ACK'}},
-        {source:'CLOSE_WAIT',target:'LAST_ACK',label:{formatter:'close: 发FIN'}},
-        {source:'LAST_ACK',target:'CLOSED',label:{formatter:'收ACK'}},
-        {source:'TIME_WAIT',target:'CLOSED',label:{formatter:'等待2MSL'}},
-      ]
-    }]
-  });
-}
-
-function renderNetfilter() {
-  const chart = echarts.init(document.getElementById('netfilterChart'));
-  chart.setOption({
-    title:{text:'Netfilter五钩子包流向图',left:'center'},
-    series:[{type:'graph',layout:'none',roam:false,symbolSize:[100,50],symbol:'rect',
-      label:{show:true,fontSize:11,fontWeight:'bold',color:'white'},
-      edgeSymbol:['none','arrow'],edgeSymbolSize:8,
-      lineStyle:{width:2},
-      data:[
-        {name:'网卡入',x:50,y:150,itemStyle:{color:'#ef4444'}},
-        {name:'PRE_ROUTING\nDNAT',x:200,y:150,itemStyle:{color:'#f97316'}},
-        {name:'路由判决',x:350,y:150,itemStyle:{color:'#6b7280'}},
-        {name:'LOCAL_IN\nINPUT',x:350,y:50,itemStyle:{color:'#eab308'}},
-        {name:'FORWARD',x:500,y:150,itemStyle:{color:'#8b5cf6'}},
-        {name:'本地进程',x:350,y:-50,itemStyle:{color:'#22c55e'}},
-        {name:'本机发包',x:500,y:50,itemStyle:{color:'#3b82f6'}},
-        {name:'LOCAL_OUT\nOUTPUT',x:650,y:50,itemStyle:{color:'#14b8a6'}},
-        {name:'POST_ROUTING\nSNAT',x:650,y:150,itemStyle:{color:'#d946ef'}},
-        {name:'网卡出',x:800,y:150,itemStyle:{color:'#ef4444'}},
-      ],
-      links:[
-        {source:'网卡入',target:'PRE_ROUTING\nDNAT'},
-        {source:'PRE_ROUTING\nDNAT',target:'路由判决'},
-        {source:'路由判决',target:'LOCAL_IN\nINPUT',label:{formatter:'发往本机'}},
-        {source:'路由判决',target:'FORWARD',label:{formatter:'转发'}},
-        {source:'LOCAL_IN\nINPUT',target:'本地进程'},
-        {source:'本地进程',target:'本机发包'},
-        {source:'本机发包',target:'LOCAL_OUT\nOUTPUT'},
-        {source:'LOCAL_OUT\nOUTPUT',target:'路由判决'},
-        {source:'FORWARD',target:'POST_ROUTING\nSNAT'},
-        {source:'LOCAL_OUT\nOUTPUT',target:'POST_ROUTING\nSNAT',lineStyle:{curveness:0.3}},
-        {source:'POST_ROUTING\nSNAT',target:'网卡出'},
-      ]
-    }]
-  });
-}
-
-function renderCongestion() {
-  const chart = echarts.init(document.getElementById('congestionChart'));
-  const x = Array.from({length:100}, (_,i)=>i);
-  const cubic = x.map(i => {
-    if(i<20) return i*10; // 慢启动
-    if(i<60) return 200 + Math.pow((i-40)/10,3)*30; // CUBIC增长
-    return 100; // 丢包后乘性减
-  });
-  const bbr = x.map(i => {
-    if(i<10) return i*20; // STARTUP
-    if(i<50) return 200; // DRAIN
-    return 180 + Math.sin(i/10)*20; // PROBE_BW稳定
-  });
-  chart.setOption({
-    title:{text:'CUBIC vs BBR 拥塞窗口(cwnd)演化对比',left:'center'},
-    tooltip:{trigger:'axis'},
-    legend:{data:['CUBIC','BBR'],top:30},
-    xAxis:{type:'category',data:x,name:'时间(RTT)'},
-    yAxis:{type:'value',name:'cwnd(包数)'},
-    series:[
-      {name:'CUBIC',type:'line',data:cubic,smooth:true,itemStyle:{color:'#3b82f6'}},
-      {name:'BBR',type:'line',data:bbr,smooth:true,itemStyle:{color:'#8b5cf6'}},
-    ]
-  });
-}
-
-function renderVfs() {
-  const chart = echarts.init(document.getElementById('vfsChart'));
-  chart.setOption({
-    title:{text:'VFS四大对象关系图',left:'center'},
-    series:[{type:'graph',layout:'force',roam:true,symbolSize:90,
-      label:{show:true,fontSize:12,fontWeight:'bold'},
-      edgeSymbol:['none','arrow'],edgeSymbolSize:8,
-      force:{repulsion:400,edgeLength:150},
-      data:[
-        {name:'super_block\n超级块',itemStyle:{color:'#ef4444'},value:'已挂载文件系统实例'},
-        {name:'inode\n索引节点',itemStyle:{color:'#f97316'},value:'文件元数据（唯一标识）'},
-        {name:'dentry\n目录项',itemStyle:{color:'#eab308'},value:'路径名→inode缓存'},
-        {name:'file\n文件对象',itemStyle:{color:'#22c55e'},value:'打开文件实例（有fd）'},
-        {name:'进程task_struct\nfiles_struct',itemStyle:{color:'#3b82f6'},value:'fd表'},
-        {name:'ext4/XFS/Btrfs\nsuper_operations',itemStyle:{color:'#8b5cf6'}},
-        {name:'file_operations\nread/write',itemStyle:{color:'#ec4899'}},
-      ],
-      links:[
-        {source:'super_block\n超级块',target:'inode\n索引节点',label:{show:true,formatter:'管理所有inode'}},
-        {source:'super_block\n超级块',target:'ext4/XFS/Btrfs\nsuper_operations',label:{show:true,formatter:'s_op指向'}},
-        {source:'inode\n索引节点',target:'dentry\n目录项',label:{show:true,formatter:'d_alias'}},
-        {source:'inode\n索引节点',target:'file_operations\nread/write',label:{show:true,formatter:'i_fop默认接口'}},
-        {source:'dentry\n目录项',target:'inode\n索引节点',label:{show:true,formatter:'d_inode指向'}},
-        {source:'dentry\n目录项',target:'dentry\n目录项',label:{show:true,formatter:'d_parent父目录'}},
-        {source:'file\n文件对象',target:'dentry\n目录项',label:{show:true,formatter:'f_path'}},
-        {source:'file\n文件对象',target:'file_operations\nread/write',label:{show:true,formatter:'f_op'}},
-        {source:'进程task_struct\nfiles_struct',target:'file\n文件对象',label:{show:true,formatter:'fd数组索引'}},
-      ]
-    }]
-  });
-}
-
-function renderDriver() {
-  const chart = echarts.init(document.getElementById('driverChart'));
-  chart.setOption({
-    title:{text:'设备模型匹配流程：device与driver在bus上配对',left:'center'},
-    series:[{type:'graph',layout:'none',roam:true,symbolSize:90,
-      label:{show:true,fontSize:11,fontWeight:'bold',color:'white'},
-      edgeSymbol:['none','arrow'],edgeSymbolSize:8,
-      data:[
-        {name:'kobject\n引用计数/sysfs',x:450,y:350,itemStyle:{color:'#6b7280'}},
-        {name:'bus_type\n总线(如platform/PCI/USB)',x:450,y:200,itemStyle:{color:'#3b82f6'}},
-        {name:'device\n设备实例',x:200,y:50,itemStyle:{color:'#22c55e'}},
-        {name:'driver\n驱动实例',x:700,y:50,itemStyle:{color:'#f59e0b'}},
-        {name:'match()\n名字/ID匹配',x:450,y:50,itemStyle:{color:'#ef4444'}},
-        {name:'probe()\n初始化硬件',x:450,y:-100,itemStyle:{color:'#8b5cf6'}},
-        {name:'sysfs\n/sys/bus/...',x:200,y:200,itemStyle:{color:'#ec4899'}},
-        {name:'uevent\n通知udev',x:700,y:200,itemStyle:{color:'#14b8a6'}},
-      ],
-      links:[
-        {source:'device\n设备实例',target:'kobject\n引用计数/sysfs'},
-        {source:'driver\n驱动实例',target:'kobject\n引用计数/sysfs'},
-        {source:'bus_type\n总线(如platform/PCI/USB)',target:'kobject\n引用计数/sysfs'},
-        {source:'device\n设备实例',target:'bus_type\n总线(如platform/PCI/USB)',label:{formatter:'注册到dev链表'}},
-        {source:'driver\n驱动实例',target:'bus_type\n总线(如platform/PCI/USB)',label:{formatter:'注册到drv链表'}},
-        {source:'device\n设备实例',target:'match()\n名字/ID匹配'},
-        {source:'driver\n驱动实例',target:'match()\n名字/ID匹配'},
-        {source:'match()\n名字/ID匹配',target:'probe()\n初始化硬件',label:{formatter:'匹配成功'}},
-        {source:'bus_type\n总线(如platform/PCI/USB)',target:'sysfs\n/sys/bus/...'},
-        {source:'device\n设备实例',target:'uevent\n通知udev'},
-      ]
-    }]
-  });
-}
-
-// 全局知识图谱
-let graphChart;
-function renderGraph(filter='all') {
-  const allNodes = [
-    // 进程
-    {id:'task_struct',name:'task_struct',category:0,symbolSize:50},
-    {id:'sched_class',name:'sched_class',category:0,symbolSize:40},
-    {id:'CFS/EEVDF',name:'CFS/EEVDF',category:0,symbolSize:35},
-    // 内存
-    {id:'page',name:'struct page',category:1,symbolSize:50},
-    {id:'mm_struct',name:'mm_struct',category:1,symbolSize:45},
-    {id:'vma',name:'vm_area_struct',category:1,symbolSize:40},
-    {id:'伙伴系统',name:'伙伴系统',category:1,symbolSize:35},
-    {id:'页表',name:'四级页表',category:1,symbolSize:35},
-    // 中断
-    {id:'irq_desc',name:'irq_desc',category:2,symbolSize:40},
-    {id:'softirq',name:'softirq',category:2,symbolSize:35},
-    {id:'workqueue',name:'workqueue',category:2,symbolSize:30},
-    {id:'NAPI',name:'NAPI',category:2,symbolSize:30},
-    // 网络
-    {id:'sk_buff',name:'sk_buff',category:3,symbolSize:55},
-    {id:'sock',name:'struct sock',category:3,symbolSize:45},
-    {id:'tcp',name:'TCP状态机',category:3,symbolSize:40},
-    {id:'netfilter',name:'Netfilter',category:3,symbolSize:35},
-    {id:'socket',name:'socket API',category:3,symbolSize:35},
-    {id:'BBR',name:'BBR/CUBIC',category:3,symbolSize:30},
-    // 文件系统
-    {id:'super_block',name:'super_block',category:4,symbolSize:45},
-    {id:'inode',name:'inode',category:4,symbolSize:45},
-    {id:'dentry',name:'dentry',category:4,symbolSize:40},
-    {id:'file',name:'struct file',category:4,symbolSize:40},
-    {id:'VFS',name:'VFS',category:4,symbolSize:40},
-    // 驱动虚拟化
-    {id:'kobject',name:'kobject',category:5,symbolSize:35},
-    {id:'bus_type',name:'bus_type',category:5,symbolSize:35},
-    {id:'device',name:'device',category:5,symbolSize:35},
-    {id:'driver',name:'device_driver',category:5,symbolSize:35},
-    {id:'namespace',name:'namespace',category:5,symbolSize:35},
-    {id:'KVM',name:'KVM',category:5,symbolSize:35},
-  ];
-  const allLinks = [
-    {source:'task_struct',target:'mm_struct'},
-    {source:'task_struct',target:'sched_class'},
-    {source:'task_struct',target:'file'},
-    {source:'sched_class',target:'CFS/EEVDF'},
-    {source:'mm_struct',target:'vma'},
-    {source:'mm_struct',target:'页表'},
-    {source:'vma',target:'page'},
-    {source:'伙伴系统',target:'page'},
-    {source:'irq_desc',target:'softirq'},
-    {source:'softirq',target:'workqueue'},
-    {source:'NAPI',target:'softirq'},
-    {source:'NAPI',target:'sk_buff'},
-    {source:'sk_buff',target:'sock'},
-    {source:'sock',target:'tcp'},
-    {source:'sock',target:'socket'},
-    {source:'netfilter',target:'sk_buff'},
-    {source:'tcp',target:'BBR'},
-    {source:'VFS',target:'super_block'},
-    {source:'VFS',target:'inode'},
-    {source:'VFS',target:'dentry'},
-    {source:'super_block',target:'inode'},
-    {source:'dentry',target:'inode'},
-    {source:'file',target:'dentry'},
-    {source:'file',target:'inode'},
-    {source:'kobject',target:'bus_type'},
-    {source:'kobject',target:'device'},
-    {source:'kobject',target:'driver'},
-    {source:'bus_type',target:'device'},
-    {source:'bus_type',target:'driver'},
-    {source:'namespace',target:'KVM'},
-    {source:'sk_buff',target:'page'},
-  ];
-  const categories = [
-    {name:'进程调度',itemStyle:{color:'#ef4444'}},
-    {name:'内存管理',itemStyle:{color:'#3b82f6'}},
-    {name:'中断机制',itemStyle:{color:'#eab308'}},
-    {name:'TCP/IP',itemStyle:{color:'#22c55e'}},
-    {name:'文件系统',itemStyle:{color:'#a855f7'}},
-    {name:'驱动虚拟化',itemStyle:{color:'#f97316'}},
-  ];
-  let nodes = allNodes;
-  let links = allLinks;
-  if(filter !== 'all') {
-    const catMap = {process:0,memory:1,irq:2,net:3,fs:4,driver:5};
-    const cat = catMap[filter];
-    nodes = allNodes.filter(n => n.category === cat || allLinks.some(l => 
-      (l.source === n.id || l.target === n.id) && 
-      allNodes.some(n2 => n2.id === (l.source===n.id?l.target:l.source) && n2.category === cat)
-    ));
-    const nodeIds = new Set(nodes.map(n=>n.id));
-    links = allLinks.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
-  }
-  if(!graphChart) graphChart = echarts.init(document.getElementById('ontologyGraph'));
-  graphChart.setOption({
-    tooltip:{},
-    legend:{data:categories.map(c=>c.name),top:10},
-    series:[{
-      type:'graph',layout:'force',roam:true,draggable:true,
-      categories:categories,
-      label:{show:true,fontSize:10,fontWeight:'bold'},
-      force:{repulsion:200,edgeLength:80},
-      data:nodes,links:links,
-      emphasis:{focus:'adjacency',lineStyle:{width:5}}
-    }]
-  });
-}
-function filterGraph(cat) {renderGraph(cat);}
-
-// 滚动动画
-gsap.utils.toArray('.animate-on-scroll').forEach(el => {
-  gsap.to(el, {opacity:1, y:0, duration:0.8, scrollTrigger:{trigger:el, start:'top 80%'}});
-});
-
 // 导航激活
-window.addEventListener('scroll', () => {
-  const sections = document.querySelectorAll('.section');
-  let current = '';
-  sections.forEach(s => {
-    if(window.scrollY >= s.offsetTop - 100) current = s.id;
-  });
-  document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.remove('active');
-    if(n.getAttribute('href') === '#'+current) n.classList.add('active');
-  });
-});
-
-// 初始渲染
-window.addEventListener('load', () => {
-  renderSchedClass();
-  renderVfs();
-  renderDriver();
-  renderGraph('all');
+const secs=document.querySelectorAll('section[id]');
+const links=document.querySelectorAll('nav#toc a');
+window.addEventListener('scroll',()=>{
+  let cur='';secs.forEach(s=>{if(window.scrollY>=s.offsetTop-100)cur=s.id;});
+  links.forEach(a=>{a.classList.toggle('active',a.getAttribute('href')==='#'+cur);});
 });
 </script>
+
 </body>
 </html>
